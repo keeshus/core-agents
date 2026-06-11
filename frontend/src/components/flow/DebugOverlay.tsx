@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  X, Play, Loader2, CheckCircle, XCircle, Clock,
+  X, Play, Loader2, CheckCircle, XCircle, Clock, Square,
   ChevronDown, ChevronUp, AlertTriangle, Bot, Wrench, GitBranch, Code, ArrowRight
 } from 'lucide-react';
 
@@ -59,8 +59,15 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
   const [finalOutput, setFinalOutput] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const toggle = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
+
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    setStatus('failed');
+    setError('Cancelled by user');
+  }, []);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,11 +79,15 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
     setError(null);
     setStatus('running');
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch(`${API_URL}/flows/${flowId}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: (() => { try { return JSON.parse(inputStr); } catch { return { message: inputStr }; } })() }),
+        signal: controller.signal,
       });
       if (!res.body) throw new Error('No response body');
 
@@ -85,6 +96,7 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
       let buffer = '';
 
       while (true) {
+        if (controller.signal.aborted) { reader.cancel(); break; }
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -178,6 +190,14 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
             className="text-xs border rounded px-2 py-1 w-64 font-mono"
             disabled={status === 'running'}
           />
+          {status === 'running' && (
+            <button
+              onClick={stop}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+            >
+              <Square className="w-3 h-3" /> Stop
+            </button>
+          )}
           <button
             onClick={run}
             disabled={status === 'running'}

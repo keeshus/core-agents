@@ -242,7 +242,9 @@ export class FlowExecutor {
         let finalContent = '';
         let finalStreamed = '';
 
-        for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+          if (this.abortController.signal.aborted) break;
+
           const response = await callLLM(
             {
               endpointId: config.endpointId,
@@ -258,6 +260,8 @@ export class FlowExecutor {
             },
             endpoint,
           );
+
+          if (this.abortController.signal.aborted) break;
 
           if (response.text) {
             finalContent = response.text;

@@ -99,6 +99,8 @@ export default function FlowEditPage() {
     ));
   }, [selectedNodeId]);
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const handleRun = async (inputStr: string) => {
     setEvents([]);
     setOutput(null);
@@ -106,11 +108,14 @@ export default function FlowEditPage() {
     setSelectedNodeId(null);
     setIsRunning(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     let input: any;
     try { input = JSON.parse(inputStr); } catch { input = { message: inputStr }; }
 
     try {
-      const eventStream = api.flows.executeStream(flow.id, input);
+      const eventStream = api.flows.executeStream(flow.id, input, controller.signal);
 
       for await (const event of eventStream) {
         setEvents((prev) => [...prev, event]);
@@ -123,10 +128,18 @@ export default function FlowEditPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Execution error');
+      if (err?.name !== 'AbortError') {
+        setError(err.message || 'Execution error');
+      }
     } finally {
       setIsRunning(false);
+      abortRef.current = null;
     }
+  };
+
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
   };
 
   const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
@@ -368,6 +381,7 @@ export default function FlowEditPage() {
           <ExecutionPanel
             isRunning={isRunning}
             onRun={handleRun}
+            onStop={handleStop}
             events={events}
             output={output}
             error={error}

@@ -17,11 +17,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
  * Stream SSE events from a POST endpoint.
  * Returns an async generator that yields parsed JSON events.
  */
-export async function* streamSSE(url: string, body: unknown): AsyncGenerator<any> {
+export async function* streamSSE(url: string, body: unknown, signal?: AbortSignal): AsyncGenerator<any> {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),
+    signal,
   });
 
   if (!res.ok) {
@@ -87,8 +88,8 @@ export const api = {
         reader.cancel();
       }
     },
-    executeStream: (id: string, input?: Record<string, unknown>) =>
-      streamSSE(`${BASE_URL}/flows/${id}/execute`, { input }),
+    executeStream: (id: string, input?: Record<string, unknown>, signal?: AbortSignal) =>
+      streamSSE(`${BASE_URL}/flows/${id}/execute`, { input }, signal),
   },
   catalog: {
     list: () => request<any[]>('/catalog'),
