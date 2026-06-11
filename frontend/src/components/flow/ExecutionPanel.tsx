@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Loader2 } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 
 interface ExecutionPanelProps {
   isRunning: boolean;
