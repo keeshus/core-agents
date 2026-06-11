@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { api } from '@/lib/api-client';
 import Link from 'next/link';
-import { Plus, Trash2, Edit3, MessageCircle, Settings, Play, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Edit3, MessageCircle, Settings, Play, Loader2, CheckCircle, XCircle, History, Bug } from 'lucide-react';
 
 export default function FlowsListPage() {
   const [flows, setFlows] = useState<any[]>([]);
@@ -84,6 +84,12 @@ export default function FlowsListPage() {
                   )}
                   <Link href={`/chat/${flow.id}`} className="p-2 text-gray-400 hover:text-green-600 transition-colors" title="Chat with this agent">
                     <MessageCircle className="w-4 h-4" />
+                  </Link>
+                  <Link href={`/flows/${flow.id}/edit?debug=1`} className="p-2 text-gray-400 hover:text-purple-600 transition-colors" title="Debug this flow">
+                    <Bug className="w-4 h-4" />
+                  </Link>
+                  <Link href={`/flows/${flow.id}/executions`} className="p-2 text-gray-400 hover:text-purple-600 transition-colors" title="Debug history">
+                    <History className="w-4 h-4" />
                   </Link>
                   <Link href={`/flows/${flow.id}/edit`} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Edit flow">
                     <Edit3 className="w-4 h-4" />

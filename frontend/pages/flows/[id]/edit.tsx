@@ -6,7 +6,8 @@ import { NodeCatalog } from '@/components/flow/NodeCatalog';
 import { ExecutionPanel } from '@/components/flow/ExecutionPanel';
 import { LLMAgentConfig } from '@/components/flow/config/LLMAgentConfig';
 import { MCPToolConfig } from '@/components/flow/config/MCPToolConfig';
-import { Save, ArrowLeft, Settings, X, Trash2 } from 'lucide-react';
+import { DebugOverlay } from '@/components/flow/DebugOverlay';
+import { Save, ArrowLeft, Settings, X, Trash2, Bug, History } from 'lucide-react';
 import Link from 'next/link';
 
 const NODE_LABELS: Record<string, string> = {
@@ -30,6 +31,7 @@ export default function FlowEditPage() {
   const addNodeRef = useRef<((type: string, defaultConfig: Record<string, any>) => void) | null>(null);
   const setNodeDataRef = useRef<((nodeId: string, config: Record<string, any>) => void) | null>(null);
   const deleteNodeRef = useRef<((nodeId: string) => void) | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   // Selected node for config editing
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -49,6 +51,11 @@ export default function FlowEditPage() {
       }).finally(() => setLoading(false));
     }
   }, [id]);
+
+  // Auto-open debug overlay from ?debug=1
+  useEffect(() => {
+    if (router.query.debug === '1') setShowDebug(true);
+  }, [router.query.debug]);
 
   const handleSave = useCallback(async () => {
     if (!flow) return;
@@ -141,6 +148,20 @@ export default function FlowEditPage() {
           <Link href="/settings" className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors" title="Manage LLM endpoints & MCP servers">
             <Settings className="w-4 h-4" />
           </Link>
+          <Link
+            href={`/flows/${flow.id}/executions`}
+            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Execution history & debug traces"
+          >
+            <History className="w-4 h-4" />
+          </Link>
+          <button
+            onClick={() => setShowDebug(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
+            title="Debug run — trace execution step by step"
+          >
+            <Bug className="w-3 h-3" /> Debug
+          </button>
           <button
             onClick={handleSave}
             disabled={saving}
@@ -317,6 +338,11 @@ export default function FlowEditPage() {
           />
         )}
       </div>
+
+      {/* Debug overlay */}
+      {showDebug && flow && (
+        <DebugOverlay flowId={flow.id} onClose={() => setShowDebug(false)} />
+      )}
     </div>
   );
 }

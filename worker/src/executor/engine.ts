@@ -52,11 +52,28 @@ export class FlowExecutor {
 
       const stepInput = this.prepareInput(node, flow.edges, nodeOutputs);
 
+      // Enrich step input with node config for debugging (LLM prompt, model, etc.)
+      const enrichedInput: Record<string, unknown> = {
+        ...(stepInput as Record<string, unknown> || {}),
+        _nodeType: node.data.type,
+        _nodeLabel: node.data.label || node.data.type,
+      };
+      if (node.data.type === 'llm-agent') {
+        const cfg = (node.data as any).config || {};
+        if (cfg.systemPrompt) enrichedInput.systemPrompt = cfg.systemPrompt;
+        if (cfg.model) enrichedInput.model = cfg.model;
+        if (cfg.temperature !== undefined) enrichedInput.temperature = cfg.temperature;
+      }
+      if (node.data.type === 'branch') {
+        const cfg = (node.data as any).config || {};
+        if (cfg.condition) enrichedInput.condition = cfg.condition;
+      }
+
       await onEvent(node.id, {
         type: 'step.started',
         executionId: '',
         nodeId: node.id,
-        data: { nodeId: node.id, nodeType: node.data.type, input: stepInput as Record<string, unknown> },
+        data: { nodeId: node.id, nodeType: node.data.type, input: enrichedInput },
         timestamp: new Date().toISOString(),
       });
 
