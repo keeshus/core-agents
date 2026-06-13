@@ -55,18 +55,26 @@ export class FlowExecutor {
     for (const node of sorted) {
       if (this.abortController.signal.aborted) break;
 
+      // Skip MCP Tool / Retriever nodes — they only run when called by an LLM Agent
+      if (node.data.type === 'mcp-tool' || node.data.type === 'retriever') {
+        // Only skip if this node is connected to an LLM Agent's tool-input
+        const outgoingEdges = flow.edges.filter(e => e.source === node.id);
+        const isToolProvider = outgoingEdges.some(e => e.sourceHandle === 'tool-output' || e.targetHandle?.startsWith('tool-input'));
+        if (isToolProvider) {
+          nodeOutputs.set(node.id, { note: 'called by LLM Agent' });
+          continue;
+        }
+      }
+
       // Check if this node should be skipped based on incoming edge conditions
       const incomingEdges = flow.edges.filter(e => e.target === node.id);
       if (incomingEdges.length > 0) {
         const sourceOutputs = incomingEdges.map(e => nodeOutputs.get(e.source));
-        // If any incoming edge has a condition, check if it matches the source's output
         const allFiltered = incomingEdges.every((e, i) => {
-          if (!e.condition?.label) return false; // unconditional edge — always passes
+          if (!e.condition?.label) return false;
           const src = sourceOutputs[i];
-          // Branch node output has { verdict, label }. Edge condition has { label }.
-          // Follow the edge only if the branch output label matches the edge condition label
           const branchLabel = (src as any)?.label;
-          return branchLabel !== e.condition.label; // true means "should exclude this edge"
+          return branchLabel !== e.condition.label;
         });
 
         if (allFiltered && incomingEdges.some(e => e.condition?.label)) {
