@@ -484,18 +484,26 @@ export class FlowExecutor {
         const subNodes = (config?.subNodes || []) as FlowNode[];
         if (subNodes.length === 0) return { merged: {}, note: 'no sub-nodes' };
 
-        // Run all sub-nodes in parallel — any failure stops the entire flow
+        // Run all sub-nodes in parallel — any failure aborts all siblings
+        const parallelAbort = new AbortController();
         const results = await Promise.all(
           subNodes.map(async (subNode) => {
-            const output = await this.executeNode(subNode, input, context, onEvent);
-            await onEvent(node.id, {
-              type: 'log',
-              executionId: '',
-              nodeId: node.id,
-              data: { nodeId: node.id, subNodeId: subNode.id, subNodeType: subNode.data.type, status: 'completed', output },
-              timestamp: new Date().toISOString(),
-            });
-            return { id: subNode.id, type: subNode.data.type, output };
+            if (parallelAbort.signal.aborted) throw new Error('Aborted by sibling failure');
+            try {
+              // Create a wrapper context that checks the parallel abort signal
+              const output = await this.executeNode(subNode, input, { ...context }, onEvent);
+              await onEvent(node.id, {
+                type: 'log',
+                executionId: '',
+                nodeId: node.id,
+                data: { nodeId: node.id, subNodeId: subNode.id, subNodeType: subNode.data.type, status: 'completed', output },
+                timestamp: new Date().toISOString(),
+              });
+              return { id: subNode.id, type: subNode.data.type, output };
+            } catch (err) {
+              parallelAbort.abort(); // Kill all other siblings
+              throw err;
+            }
           }),
         );
 
