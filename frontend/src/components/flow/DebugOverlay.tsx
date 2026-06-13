@@ -27,6 +27,7 @@ interface StepInfo {
   startedAt: string;
   completedAt: string | null;
   tokens: string[];
+  children?: Array<{ nodeId: string; type: string; output?: any; error?: string; status: string }>;
 }
 
 const NODE_ICONS: Record<string, any> = {
@@ -47,6 +48,7 @@ const NODE_LABELS: Record<string, string> = {
   branch: 'Condition',
   code: 'Code',
   output: 'Output',
+  parallel: 'Parallel',
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -139,6 +141,14 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
             setSteps(prev => prev.map(s =>
               s.nodeId === nodeId ? { ...s, status: 'failed', error: d.error || null, completedAt: event.timestamp } : s
             ));
+          } else if (event.type === 'log' && d.subNodeId) {
+            // Parallel node child event
+            setSteps(prev => prev.map(s => {
+              if (s.nodeId !== nodeId || s.nodeType !== 'parallel') return s;
+              const existing = s.children || [];
+              const child = { nodeId: d.subNodeId, type: d.subNodeType, output: d.output, error: d.error, status: d.status };
+              return { ...s, children: [...existing.filter(c => c.nodeId !== d.subNodeId), child] };
+            }));
           } else if (event.type === 'execution.completed') {
             setFinalOutput(d.output);
             setStatus('completed');
@@ -320,6 +330,36 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
                           <div>
                             <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Condition</h4>
                             <code className="text-xs bg-white border rounded p-2 block font-mono">{step.input.condition}</code>
+                          </div>
+                        )}
+
+                        {/* Parallel children */}
+                        {step.nodeType === 'parallel' && step.children && step.children.length > 0 && (
+                          <div>
+                            <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                              Sub-nodes ({step.children.length})
+                            </h4>
+                            <div className="space-y-1.5">
+                              {step.children.map(child => (
+                                <div key={child.nodeId} className={`p-2 rounded border text-xs ${
+                                  child.status === 'completed' ? 'bg-green-50 border-green-200' :
+                                  child.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    {child.status === 'completed' && <CheckCircle className="w-3 h-3 text-green-500" />}
+                                    {child.status === 'failed' && <XCircle className="w-3 h-3 text-red-500" />}
+                                    <span className="font-medium text-gray-700">{NODE_LABELS[child.type] || child.type}</span>
+                                    <span className="text-[10px] text-gray-400">{child.nodeId.slice(0, 8)}</span>
+                                  </div>
+                                  {child.error && <p className="text-red-600 mt-1 font-mono">{child.error}</p>}
+                                  {child.output && (
+                                    <pre className="mt-1 text-[10px] bg-white rounded p-1.5 max-h-24 overflow-y-auto font-mono whitespace-pre-wrap break-all">
+                                      {JSON.stringify(child.output, null, 2)}
+                                    </pre>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 

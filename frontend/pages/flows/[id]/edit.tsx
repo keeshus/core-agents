@@ -233,26 +233,6 @@ export default function FlowEditPage() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
-              {/* Parent selector for parallel grouping */}
-              {selectedNode.data.type !== 'parallel' && nodes.some((n: any) => n.type === 'parallel') && (
-                <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <label className="block">
-                    <span className="text-xs font-medium text-purple-700">Assign to Parallel Group</span>
-                    <select
-                      className="mt-1 block w-full rounded border border-purple-300 p-2 text-sm bg-white"
-                      value={nodes.find((n: any) => n.id === selectedNode.id)?.parentId || ''}
-                      onChange={(e) => {
-                        setNodes((prev: any[]) => prev.map((n: any) => n.id === selectedNode.id ? { ...n, parentId: e.target.value || undefined } : n));
-                      }}
-                    >
-                      <option value="">None (runs sequentially)</option>
-                      {nodes.filter((n: any) => n.type === 'parallel').map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.data.label || 'Parallel'} ({p.id.slice(0, 8)})</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              )}
               {selectedNode.data.type === 'llm-agent' && (
                 <LLMAgentConfig
                   config={selectedNode.data.config}
