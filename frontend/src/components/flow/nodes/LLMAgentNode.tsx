@@ -5,7 +5,7 @@ export function LLMAgentNode(props: NodeProps) {
   const config = props.data?.config as Record<string, any> | undefined;
   const isJson = config?.responseFormat === 'json_object';
   return (
-    <BaseNode label="LLM Agent" nodeType="llm-agent" category="processing" selected={props.selected || false} toolInputs={1}>
+    <BaseNode label={props.data?.label || 'LLM Agent'} nodeType="LLM Agent" category="processing" selected={props.selected || false} toolInputs={1}>
       <div className="space-y-1">
         <p><span className="text-gray-500">Endpoint:</span> {config?.endpointName || (config?.endpointId ? 'Configured' : 'Not set')}</p>
         <p><span className="text-gray-500">Model:</span> {config?.model || 'Default'}</p>

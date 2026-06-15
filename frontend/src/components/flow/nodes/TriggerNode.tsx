@@ -13,7 +13,7 @@ export function TriggerNode(props: NodeProps) {
   const triggerType = config?.triggerType || 'manual';
   const info = TRIGGER_INFO[triggerType] || TRIGGER_INFO.manual;
   return (
-    <BaseNode label="Trigger" nodeType="trigger" category="input" selected={props.selected || false} inputs={0} outputs={1}>
+    <BaseNode label={props.data?.label || 'Trigger'} nodeType="Trigger" category="input" selected={props.selected || false} inputs={0} outputs={1}>
       <div className="space-y-1">
         <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-medium ${info.color}`}>{info.label}</span>
         <p className="text-[10px] text-gray-500">{info.desc}</p>

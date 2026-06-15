@@ -11,7 +11,7 @@ export function OutputNode(props: NodeProps) {
   const config = props.data?.config as Record<string, any> | undefined;
   const format = config?.format || 'json';
   return (
-    <BaseNode label="Output" nodeType="output" category="output" selected={props.selected || false} inputs={1} outputs={0}>
+    <BaseNode label={props.data?.label || 'Output'} nodeType="Output" category="output" selected={props.selected || false} inputs={1} outputs={0}>
       <div className="space-y-1">
         <p><span className="text-gray-500">Format:</span> {format}</p>
       </div>

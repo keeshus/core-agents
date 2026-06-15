@@ -37,6 +37,9 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
       ))}
       <div className="px-3 py-2 border-b bg-gray-50 font-medium text-sm rounded-t-lg flex items-center gap-2">
         <span>{label}</span>
+        {nodeType && label !== nodeType && (
+          <span className="text-[10px] text-gray-400 font-normal">{nodeType}</span>
+        )}
       </div>
       <div className="p-3 text-xs">
         {children}

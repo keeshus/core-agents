@@ -22,7 +22,7 @@ export function ParallelNode(props: NodeProps) {
       <Handle type="source" position={Position.Right} id="output-0" className="!bg-purple-500" />
 
       <div className="px-3 py-2 border-b border-purple-200 bg-purple-100/50 shrink-0">
-        <span className="text-sm font-semibold text-purple-800">Parallel</span>
+        <span className="text-sm font-semibold text-purple-800">{props.data?.label || 'Parallel'}</span>
         <span className="ml-2 text-[10px] text-purple-500">
           {count > 0 ? `${count} node${count !== 1 ? 's' : ''}` : 'empty'}
         </span>

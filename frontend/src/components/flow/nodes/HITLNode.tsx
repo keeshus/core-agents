@@ -4,7 +4,7 @@ import { BaseNode } from './BaseNode';
 export function HITLNode(props: NodeProps) {
   const config = props.data?.config as Record<string, any> | undefined;
   return (
-    <BaseNode label="Human in the Loop" nodeType="hitl" category="processing" selected={props.selected || false} inputs={1} outputs={1}>
+    <BaseNode label={props.data?.label || 'Human in the Loop'} nodeType="HITL" category="processing" selected={props.selected || false} inputs={1} outputs={1}>
       <div className="space-y-1">
         <p className="text-xs text-gray-500">Flow pauses here for human approval</p>
         {config?.prompt && <p className="text-xs text-amber-600 italic truncate">{config.prompt.slice(0, 60)}</p>}

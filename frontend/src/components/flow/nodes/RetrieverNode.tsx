@@ -4,7 +4,7 @@ import { BaseNode } from './BaseNode';
 export function RetrieverNode(props: NodeProps) {
   const config = props.data?.config as Record<string, any> | undefined;
   return (
-    <BaseNode label="Retriever" nodeType="retriever" category="tools" selected={props.selected || false} inputs={0} outputs={0} toolOutput>
+    <BaseNode label={props.data?.label || 'Retriever'} nodeType="Retriever" category="tools" selected={props.selected || false} inputs={0} outputs={0} toolOutput>
       <div className="space-y-1">
         {config?.embeddingProviderId ? <p className="text-[10px] text-gray-500">Embedding configured</p> : <p className="text-[10px] text-gray-400">No embedding provider</p>}
         <p><span className="text-gray-500">Collection:</span> {config?.collectionName || 'Not set'}</p>

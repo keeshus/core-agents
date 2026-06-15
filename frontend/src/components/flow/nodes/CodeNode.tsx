@@ -6,7 +6,7 @@ export function CodeNode(props: NodeProps) {
   const language = config?.language || 'javascript';
   const code = config?.code || '';
   return (
-    <BaseNode label="Code" nodeType="code" category="processing" selected={props.selected || false}>
+    <BaseNode label={props.data?.label || 'Code'} nodeType="Code" category="processing" selected={props.selected || false}>
       <div className="space-y-1">
         <p>
           <span className="inline-block bg-gray-200 text-gray-700 text-[10px] px-1.5 py-0.5 rounded font-mono uppercase">{language}</span>

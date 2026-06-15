@@ -105,13 +105,18 @@ export default function FlowEditPage() {
 
   const handleConfigChange = useCallback((newConfig: Record<string, any>) => {
     if (!selectedNodeId) return;
-    // Apply immediately to FlowEditor via ref
     setNodeDataRef.current?.(selectedNodeId, newConfig);
-    // Also update parent state for save
     setNodes((prev) => prev.map((n) =>
       n.id === selectedNodeId
         ? { ...n, data: { ...n.data, config: { ...n.data.config, ...newConfig } } }
         : n
+    ));
+  }, [selectedNodeId]);
+
+  const handleLabelChange = useCallback((label: string) => {
+    if (!selectedNodeId) return;
+    setNodes((prev) => prev.map((n) =>
+      n.id === selectedNodeId ? { ...n, data: { ...n.data, label } } : n
     ));
   }, [selectedNodeId]);
 
@@ -165,15 +170,25 @@ export default function FlowEditPage() {
   return (
     <div className="h-screen flex flex-col">
       {/* Toolbar */}
-      <div className="h-12 border-b bg-white flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <Link href="/flows" className="text-gray-400 hover:text-gray-600"><ArrowLeft className="w-4 h-4" /></Link>
-          <input
-            className="text-sm font-semibold border-none outline-none bg-transparent"
-            value={flow.name}
-            onChange={(e) => setFlow({ ...flow, name: e.target.value })}
-          />
-        </div>
+      <div className="border-b bg-white px-4 py-2 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-gray-400 hover:text-gray-600"><ArrowLeft className="w-4 h-4" /></Link>
+            <div>
+              <input
+                className="text-sm font-semibold border-none outline-none bg-transparent block"
+                value={flow.name}
+                onChange={(e) => setFlow({ ...flow, name: e.target.value })}
+                placeholder="Flow name"
+              />
+              <input
+                className="text-xs text-gray-500 border-none outline-none bg-transparent block mt-0.5 w-64"
+                value={flow.description || ''}
+                onChange={(e) => setFlow({ ...flow, description: e.target.value })}
+                placeholder="Add a description..."
+              />
+            </div>
+          </div>
         <div className="flex items-center gap-2">
           <Link href="/settings" className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors" title="Manage LLM endpoints & MCP servers">
             <Settings className="w-4 h-4" />
@@ -221,11 +236,10 @@ export default function FlowEditPage() {
         {/* Right panel: config or execution */}
         {selectedNode ? (
           <div className="w-80 border-l bg-white flex flex-col h-full">
-            <div className="p-3 border-b flex items-center justify-between shrink-0">
-              <h3 className="text-sm font-semibold">
-                {NODE_LABELS[selectedNode.data.type] || selectedNode.data.type}
-              </h3>
-              <div className="flex items-center gap-1">
+            <div className="p-3 border-b shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-gray-400 uppercase">{NODE_LABELS[selectedNode.data.type] || selectedNode.data.type}</span>
+                <div className="flex items-center gap-1">
                 <button onClick={handleDeleteNode} className="p-1 text-gray-400 hover:text-red-600 transition-colors" title="Delete node">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -233,6 +247,15 @@ export default function FlowEditPage() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+            <div className="mb-3">
+              <input
+                className="w-full text-sm font-semibold border border-gray-200 rounded px-2 py-1 focus:border-blue-400 focus:outline-none"
+                value={selectedNode.data.label || ''}
+                onChange={(e) => handleLabelChange(e.target.value)}
+                placeholder="Node name..."
+              />
+            </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {selectedNode.data.type === 'llm-agent' && (
