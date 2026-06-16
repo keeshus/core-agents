@@ -401,44 +401,34 @@ export function NodeConfigModal({
                   rows={3}
                 />
               </label>
-              <div className="bg-gray-50 rounded-lg border p-2 space-y-1.5">
-                <span className="text-xs font-semibold text-gray-700 block">Buttons</span>
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700 block">Buttons</span>
                 {(
                   node.data.config.buttons || [
                     { label: 'Approve', value: 'approved' },
                     { label: 'Reject', value: 'rejected' },
                   ]
                 ).map((btn: any, i: number) => (
-                  <div key={i} className="flex items-center gap-0.5">
+                  <div key={i} className="flex items-center gap-2">
                     <input
-                      className="w-28 rounded border border-gray-300 px-1.5 py-1.5 text-[11px]"
+                      className="flex-1 rounded border border-gray-300 p-2 text-sm"
                       value={btn.label}
                       onChange={(e) => {
-                        const btns = [
-                          ...(node.data.config.buttons || [
-                            { label: 'Approve', value: 'approved' },
-                            { label: 'Reject', value: 'rejected' },
-                          ]),
-                        ];
+                        const btns = [...(node.data.config.buttons || [{ label: 'Approve', value: 'approved' }, { label: 'Reject', value: 'rejected' }])];
                         btns[i] = { ...btns[i], label: e.target.value };
                         onConfigChange({ buttons: btns });
                       }}
-                      placeholder="Label"
+                      placeholder="Button label"
                     />
                     <input
-                      className="w-28 rounded border border-gray-300 px-1.5 py-1.5 text-[11px] font-mono"
+                      className="flex-1 rounded border border-gray-300 p-2 text-sm font-mono"
                       value={btn.value}
                       onChange={(e) => {
-                        const btns = [
-                          ...(node.data.config.buttons || [
-                            { label: 'Approve', value: 'approved' },
-                            { label: 'Reject', value: 'rejected' },
-                          ]),
-                        ];
+                        const btns = [...(node.data.config.buttons || [{ label: 'Approve', value: 'approved' }, { label: 'Reject', value: 'rejected' }])];
                         btns[i] = { ...btns[i], value: e.target.value };
                         onConfigChange({ buttons: btns });
                       }}
-                      placeholder="val"
+                      placeholder="value"
                     />
                     <button
                       onClick={() => {
@@ -470,13 +460,13 @@ export function NodeConfigModal({
                     ];
                     onConfigChange({ buttons: [...btns, { label: '', value: '' }] });
                   }}
-                  className="text-[11px] text-blue-600 hover:underline mt-1 block"
+                  className="text-sm text-blue-600 hover:underline block"
                 >
-                  + Add
+                  + Add Button
                 </button>
               </div>
               <label className="block">
-                <span className="text-xs font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700">
                   Fields to Display (what the user sees)
                 </span>
                 <input
