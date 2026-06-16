@@ -205,20 +205,40 @@ export function NodeConfigModal({
                 </p>
               </label>
               <label className="block">
-                <span className="text-xs font-medium text-gray-700">Output Labels</span>
-                <input
-                  className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm"
-                  value={(node.data.config.outputLabels || ['true', 'false']).join(', ')}
-                  onChange={(e) =>
-                    onConfigChange({
-                      outputLabels: e.target.value.split(',').map((s) => s.trim()),
-                    })
-                  }
-                  placeholder="true, false"
-                />
-                <p className="mt-1 text-[10px] text-gray-400">
-                  Comma-separated labels for each output handle.
-                </p>
+                <span className="text-sm font-medium text-gray-700 block mb-1">Output Labels</span>
+                <div className="space-y-1.5">
+                  {(node.data.config.outputLabels || ['true', 'false']).map((label: string, i: number) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        className="flex-1 rounded border border-gray-300 p-2 text-sm"
+                        value={label}
+                        onChange={(e) => {
+                          const list = [...(node.data.config.outputLabels || ['true', 'false'])];
+                          list[i] = e.target.value;
+                          onConfigChange({ outputLabels: list });
+                        }}
+                        placeholder="Label"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const list = [...(node.data.config.outputLabels || ['true', 'false'])];
+                          list.splice(i, 1);
+                          onConfigChange({ outputLabels: list.length > 0 ? list : ['true', 'false'] });
+                        }}
+                        className="px-3 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0 font-bold"
+                      >✕</button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const list = [...(node.data.config.outputLabels || ['true', 'false'])];
+                      onConfigChange({ outputLabels: [...list, ''] });
+                    }}
+                    className="text-sm text-blue-600 hover:underline block"
+                  >+ Add label</button>
+                </div>
               </label>
             </div>
           )}
@@ -466,45 +486,31 @@ export function NodeConfigModal({
                 </button>
               </div>
               <label className="block">
-                <span className="text-sm font-medium text-gray-700">
-                  Fields to Display (what the user sees)
-                </span>
-                <input
-                  className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm"
-                  value={(node.data.config.displayFields || []).join(', ')}
-                  onChange={(e) =>
-                    onConfigChange({
-                      displayFields: e.target.value
-                        .split(',')
-                        .map((s: string) => s.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  placeholder="transactions, summary"
-                />
-                <p className="mt-1 text-[10px] text-gray-400">
-                  Only these fields are shown to the reviewer. Empty = show all.
-                </p>
+                <span className="text-sm font-medium text-gray-700">Fields to Display (what the user sees)</span>
+                <div className="mt-1 space-y-1.5">
+                  {(node.data.config.displayFields || []).map((f: string, i: number) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input className="flex-1 rounded border border-gray-300 p-2 text-sm" value={f} onChange={(e) => { const list = [...(node.data.config.displayFields || [])]; list[i] = e.target.value; onConfigChange({ displayFields: list }); }} placeholder="Field name" />
+                      <button type="button" onClick={() => { const list = [...(node.data.config.displayFields || [])]; list.splice(i, 1); onConfigChange({ displayFields: list }); }} className="px-3 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0 font-bold">✕</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => onConfigChange({ displayFields: [...(node.data.config.displayFields || []), ''] })} className="text-sm text-blue-600 hover:underline block">+ Add field</button>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">Empty = show all fields.</p>
               </label>
               <label className="block">
-                <span className="text-xs font-medium text-gray-700">
-                  Fields to Forward (what passes to the next node)
-                </span>
-                <input
-                  className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm"
-                  value={(node.data.config.forwardFields || []).join(', ')}
-                  onChange={(e) =>
-                    onConfigChange({
-                      forwardFields: e.target.value
-                        .split(',')
-                        .map((s: string) => s.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  placeholder="transactions"
-                />
-                <p className="mt-1 text-[10px] text-gray-400">
-                  Only these fields from the reviewed content are passed downstream. Empty = forward
+                <span className="text-sm font-medium text-gray-700">Fields to Forward (what passes to the next node)</span>
+                <div className="mt-1 space-y-1.5">
+                  {(node.data.config.forwardFields || []).map((f: string, i: number) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input className="flex-1 rounded border border-gray-300 p-2 text-sm" value={f} onChange={(e) => { const list = [...(node.data.config.forwardFields || [])]; list[i] = e.target.value; onConfigChange({ forwardFields: list }); }} placeholder="Field name" />
+                      <button type="button" onClick={() => { const list = [...(node.data.config.forwardFields || [])]; list.splice(i, 1); onConfigChange({ forwardFields: list }); }} className="px-3 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0 font-bold">✕</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => onConfigChange({ forwardFields: [...(node.data.config.forwardFields || []), ''] })} className="text-sm text-blue-600 hover:underline block">+ Add field</button>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">Empty = forward all fields.</p>
+              </label>
                   everything.
                 </p>
               </label>
