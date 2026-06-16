@@ -251,7 +251,7 @@ export default function EndpointsPage() {
               <label className="block">
                 <span className="text-xs font-medium text-gray-700">Default Model</span>
                 {(() => {
-                  const parsed = form.models.split(',').map(s => s.trim()).filter(Boolean);
+                  const parsed = form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '');
                   if (parsed.length > 0) {
                     return (
                       <select
@@ -282,13 +282,13 @@ export default function EndpointsPage() {
             <div className="col-span-2">
               <span className="text-xs font-medium text-gray-700 block mb-1">Models</span>
               <div className="space-y-1.5">
-                {(form.models ? form.models.split(',').map(s => s.trim()).filter(Boolean) : []).map((model, i) => (
+                {(form.models ? form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '') : []).map((model, i) => (
                   <div key={i} className="flex items-center gap-1">
                     <input
                       className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs"
                       value={model}
                       onChange={(e) => {
-                        const list = form.models.split(',').map(s => s.trim()).filter(Boolean);
+                        const list = form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '');
                         list[i] = e.target.value;
                         setForm((f) => ({ ...f, models: list.join(', ') }));
                       }}
@@ -296,7 +296,7 @@ export default function EndpointsPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        const list = form.models.split(',').map(s => s.trim()).filter(Boolean);
+                        const list = form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '');
                         list.splice(i, 1);
                         setForm((f) => ({ ...f, models: list.join(', ') }));
                       }}
@@ -306,7 +306,7 @@ export default function EndpointsPage() {
                 ))}
                 <button
                   type="button"
-                  onClick={() => setForm((f) => ({ ...f, models: f.models ? f.models + ', ' : '' }))}
+                  onClick={() => setForm((f) => ({ ...f, models: f.models ? f.models + ', ' : ' ' }))}
                   className="text-[11px] text-blue-600 hover:underline"
                 >+ Add model</button>
               </div>
