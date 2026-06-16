@@ -485,48 +485,52 @@ export function NodeConfigModal({
                   + Add Button
                 </button>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <span className="text-sm font-medium text-gray-700 block mb-1">Fields to Display (what the user sees)</span>
-                  <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                    {upstreamFieldNames.length === 0 && <p className="text-xs text-gray-400">No upstream data available yet.</p>}
-                    {upstreamFieldNames.map((f) => {
-                      const selected = (node.data.config.displayFields || []).includes(f);
-                      return (
-                        <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
-                          <input type="checkbox" checked={selected || (node.data.config.displayFields || []).length === 0} onChange={() => {
-                            const list = [...(node.data.config.displayFields || [])];
-                            if (selected) onConfigChange({ displayFields: list.filter(x => x !== f) });
-                            else onConfigChange({ displayFields: [...list, f] });
-                          }} className="rounded" />
-                          <span>{f}</span>
-                        </label>
-                      );
-                    })}
+              {(() => {
+                // Only show fields that are selected as input (or all if no input selection)
+                const inputFields: string[] = node.data.config?.inputFields || [];
+                const available = inputFields.length > 0
+                  ? upstreamFieldNames.filter(f => inputFields.includes(f))
+                  : upstreamFieldNames;
+                const displayList: string[] = node.data.config?.displayFields || [];
+                const forwardList: string[] = node.data.config?.forwardFields || [];
+                return (
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 block mb-1">Fields to Display (what the user sees)</span>
+                      <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                        {available.length === 0 && <p className="text-xs text-gray-400">No upstream data available yet.</p>}
+                        {available.map((f) => (
+                          <label key={`display-${f}`} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
+                            <input type="checkbox" checked={displayList.includes(f)} onChange={() => {
+                              const list = [...displayList];
+                              if (list.includes(f)) onConfigChange({ displayFields: list.filter(x => x !== f) });
+                              else onConfigChange({ displayFields: [...list, f] });
+                            }} className="rounded" />
+                            <span className={forwardList.length > 0 && !forwardList.includes(f) ? 'text-gray-300 line-through' : ''}>{f}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Unchecked = hidden from reviewer. Empty = show all.</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 block mb-1">Fields to Forward (to the next node)</span>
+                      <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                        {available.map((f) => (
+                          <label key={`forward-${f}`} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
+                            <input type="checkbox" checked={forwardList.includes(f)} onChange={() => {
+                              const list = [...forwardList];
+                              if (list.includes(f)) onConfigChange({ forwardFields: list.filter(x => x !== f) });
+                              else onConfigChange({ forwardFields: [...list, f] });
+                            }} className="rounded" />
+                            <span>{f}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Unchecked = hidden from downstream. Empty = forward all.</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Checked fields are shown to the reviewer. Empty = show all.</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700 block mb-1">Fields to Forward (to the next node)</span>
-                  <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                    {upstreamFieldNames.length === 0 && <p className="text-xs text-gray-400">No upstream data available yet.</p>}
-                    {upstreamFieldNames.map((f) => {
-                      const selected = (node.data.config.forwardFields || []).includes(f);
-                      return (
-                        <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
-                          <input type="checkbox" checked={selected || (node.data.config.forwardFields || []).length === 0} onChange={() => {
-                            const list = [...(node.data.config.forwardFields || [])];
-                            if (selected) onConfigChange({ forwardFields: list.filter(x => x !== f) });
-                            else onConfigChange({ forwardFields: [...list, f] });
-                          }} className="rounded" />
-                          <span>{f}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">Checked fields are passed to the next node. Empty = forward all.</p>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           )}
 
