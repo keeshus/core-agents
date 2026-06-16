@@ -50,8 +50,22 @@ interface FlowEditorProps {
 }
 
 export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange, onEdgesChange, addNodeCallbackRef, setNodeDataCallbackRef, deleteNodeCallbackRef, setNodeLabelRef, onNodeClick }: FlowEditorProps) {
-  const [nodes, setNodes, onNodesChangeInternal] = useNodesState(initialNodes);
+  const [nodes, setNodes, rawOnNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
+
+  // Filter out position/drag changes for child nodes (they snap to grid)
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const onNodesChangeInternal = useCallback((changes: any[]) => {
+    rawOnNodesChange(changes.filter((c: any) => {
+      if (c.type !== 'position' && c.type !== 'dimensions') return true;
+      if (c.type === 'position') {
+        const node = nodesRef.current.find(n => n.id === c.id);
+        if (node?.parentId) return false;
+      }
+      return true;
+    }));
+  }, [rawOnNodesChange]);
   const onNodesChangeRef = useRef(onNodesChange);
   const onEdgesChangeRef = useRef(onEdgesChange);
   onNodesChangeRef.current = onNodesChange;
@@ -87,11 +101,11 @@ export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange
             const h = prev.measured?.height || 100;
             ty += h + 20;
           }
-          if (n.position.x !== 20 || n.position.y !== ty) {
+          if (n.position.x !== 20 || Math.abs(n.position.y - ty) > 10) {
             changed = true;
-            return { ...n, position: { x: 20, y: ty }, draggable: false } as any;
+            return { ...n, position: { x: 20, y: ty } };
           }
-          return { ...n, draggable: false } as any;
+          return n;
         }
 
         // Auto-size parallel containers
