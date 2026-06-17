@@ -19,7 +19,7 @@ interface LLMAgentConfigProps {
     outputSchema?: string;
   };
   onChange: (config: any) => void;
-  suggestions?: { upstreamLabels: string[]; nodes: any[]; edges: any[] };
+  suggestions?: { upstreamLabels: string[]; nodes: any[]; edges: any[]; nodeId: string };
 }
 
 export function LLMAgentConfig({ config, onChange, suggestions }: LLMAgentConfigProps) {
@@ -93,10 +93,9 @@ export function LLMAgentConfig({ config, onChange, suggestions }: LLMAgentConfig
           onChange={(v) => onChange({ ...config, systemPrompt: v })}
           placeholder="You are a helpful assistant... Type {{ for field suggestions"
           rows={4}
-          nodeId={suggestions ? undefined : undefined}
+          nodeId={suggestions?.nodeId}
           nodes={suggestions?.nodes || []}
           edges={suggestions?.edges || []}
-          suggestions={suggestions?.upstreamLabels?.length ? suggestions.upstreamLabels.map(l => `input.${l}`) : undefined}
         />
         <p className="mt-1 text-[10px] text-gray-400">Use {'{{'}input.Label.field{'}}'} to reference upstream data.</p>
       </label>

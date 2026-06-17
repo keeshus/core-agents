@@ -198,7 +198,7 @@ export function NodeConfigModal({
 
           {/* ── Node-specific config form ── */}
           {node.data.type === 'llm-agent' && (
-            <LLMAgentConfig config={node.data.config} onChange={onConfigChange} suggestions={{ upstreamLabels, nodes, edges }} />
+            <LLMAgentConfig config={node.data.config} onChange={onConfigChange} suggestions={{ upstreamLabels, nodes, edges, nodeId: node.id }} />
           )}
 
           {node.data.type === 'mcp-tool' && (
@@ -220,7 +220,7 @@ export function NodeConfigModal({
                   className="min-h-[60px]"
                 />
                 <p className="mt-1 text-[10px] text-gray-400">
-                  JavaScript expression. Use {{'{'}}{{'{'}}input.Label.field{{'}'}}{{'}'}} to reference data. Type ({{'{'}}{{'{'}}} for suggestions.
+                  Type &#x7B;&#x7B; to reference upstream data as &#x7B;&#x7B;input.Label.field&#x7D;&#x7D;.
                 </p>
               </label>
               <label className="block">
