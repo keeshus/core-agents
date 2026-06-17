@@ -71,16 +71,31 @@ export function NodeConfigModal({
 
   // Toggle a single input field
   const toggleField = useCallback(
-    (fieldName: string) => {
+    (fieldPath: string) => {
       const current: string[] = node.data.config?.inputFields || [];
-      if (current.includes(fieldName)) {
-        onConfigChange({ inputFields: current.filter((f) => f !== fieldName) });
+      if (current.includes(fieldPath)) {
+        onConfigChange({ inputFields: current.filter((f) => f !== fieldPath) });
       } else {
-        onConfigChange({ inputFields: [...current, fieldName] });
+        // If checking a label key without a dot, remove all dot-paths for that label
+        if (!fieldPath.includes('.')) {
+          onConfigChange({ inputFields: [...current.filter(f => f.split('.')[0] !== fieldPath), fieldPath] });
+        } else {
+          onConfigChange({ inputFields: [...current, fieldPath] });
+        }
       }
     },
     [node.data.config?.inputFields, onConfigChange],
   );
+
+  // Check if a specific field path is selected
+  const isFieldSelected = useCallback((fieldPath: string): boolean => {
+    const current: string[] = node.data.config?.inputFields || [];
+    if (current.length === 0) return true; // empty = all pass through
+    const label = fieldPath.split('.')[0];
+    // If the whole label is selected, all its fields are selected
+    if (current.includes(label)) return true;
+    return current.includes(fieldPath);
+  }, [node.data.config?.inputFields]);
 
   return (
     <div
@@ -134,26 +149,40 @@ export function NodeConfigModal({
                 {upstreamLabels.map((label) => {
                   const upNode = nodes.find(n => (n.data?.label || n.data?.type || n.id) === label);
                   const fields = upNode ? getNodeFields(upNode) : [];
+                  const noneSelected = configInputFields.length === 0;
+                  const labelSelected = noneSelected || configInputFields.includes(label);
+                  const labelPath = label + '.';
                   return (
                     <div key={label}>
                       <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
                         <input
                           type="checkbox"
-                          checked={configInputFields.includes(label)}
+                          checked={labelSelected}
                           onChange={() => toggleField(label)}
                           className="w-3 h-3 accent-blue-500"
                         />
                         <span className="text-xs font-semibold text-gray-800">{label}</span>
+                        <span className="text-[10px] text-gray-400">({fields.length} fields)</span>
                       </label>
                       {fields.length > 0 && (
                         <div className="ml-5 pl-3 border-l border-gray-200 space-y-0.5 mb-1">
-                          {fields.map((f) => (
-                            <div key={f.name} className="text-[10px] font-mono text-gray-400 flex items-center gap-1">
-                              <span className="text-gray-300">└─</span>
-                              <span>{f.name}</span>
-                              <span className="text-gray-300">: {f.type}</span>
-                            </div>
-                          ))}
+                          {fields.map((f) => {
+                            const fp = `${label}.${f.name}`;
+                            const checked = noneSelected || labelSelected || configInputFields.includes(fp);
+                            return (
+                              <label key={fp} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => !noneSelected && !labelSelected ? toggleField(fp) : null}
+                                  className="w-2.5 h-2.5 accent-blue-400"
+                                  disabled={noneSelected || labelSelected}
+                                />
+                                <span className="text-[10px] font-mono text-gray-500">{f.name}</span>
+                                <span className="text-[9px] text-gray-300">: {f.type}</span>
+                              </label>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

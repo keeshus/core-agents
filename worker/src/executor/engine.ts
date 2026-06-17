@@ -116,14 +116,31 @@ export class FlowExecutor {
       const stepInput = this.prepareInput(node, flow.edges, nodeOutputs);
 
       // If node has inputFields set, filter stepInput to only those fields
+      // Supports dot-notation paths like "Label.fieldname" for nested access
       const nodeConfig = (node.data as any)?.config || {};
       const inputFields = nodeConfig.inputFields as string[] | undefined;
       const filteredInput = inputFields && inputFields.length > 0 && stepInput && typeof stepInput === 'object'
-        ? Object.fromEntries(
-            inputFields
-              .map(f => [f, (stepInput as Record<string, unknown>)[f]])
-              .filter(([, v]) => v !== undefined)
-          )
+        ? (() => {
+            const result: Record<string, unknown> = {};
+            const input = stepInput as Record<string, unknown>;
+            for (const path of inputFields) {
+              const dot = path.indexOf('.');
+              if (dot === -1) {
+                // Whole label: copy all data under this label
+                if (input[path] !== undefined) result[path] = input[path];
+              } else {
+                // Dot-path: extract specific field from within this label
+                const label = path.slice(0, dot);
+                const field = path.slice(dot + 1);
+                const labelData = input[label] as Record<string, unknown> | undefined;
+                if (labelData && field in labelData) {
+                  if (!result[label]) result[label] = {};
+                  (result[label] as Record<string, unknown>)[field] = labelData[field];
+                }
+              }
+            }
+            return result;
+          })()
         : stepInput;
 
       // Enrich step input with node config for debugging (LLM prompt, model, etc.)
