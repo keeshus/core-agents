@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth, useAuthConfig } from '@/lib/auth-context';
+import { API_URL } from '@/lib/api-client';
+import { TextInput } from '@/components/FormFields';
 import Link from 'next/link';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { PasswordStrengthMeter } from '@/components/PasswordStrength';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -72,49 +72,15 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <TextInput label="Name" type="text" value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
+            <TextInput label="Email" type="text" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full rounded border border-gray-300 p-2 text-sm"
-                autoComplete="name"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="text"
-                inputMode="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full rounded border border-gray-300 p-2 text-sm"
-                autoComplete="email"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full rounded border border-gray-300 p-2 text-sm"
-                autoComplete="new-password"
-              />
-              <p className="text-[10px] text-gray-400 mt-1">Minimum 8 characters required</p>
+              <TextInput label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" />
+              <p className="text-[10px] text-gray-400 mt-2">Minimum 8 characters required</p>
               {password.length > 0 && <PasswordStrengthMeter password={password} />}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full rounded border border-gray-300 p-2 text-sm"
-                autoComplete="new-password"
-              />
+              <TextInput label="Confirm Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
               {touchedConfirm && (
                 <p className={`mt-1 text-xs flex items-center gap-1 ${passwordsMatch ? 'text-green-600' : 'text-red-600'}`}>
                   {passwordsMatch ? <CheckCircle className="w-3 h-3 shrink-0" /> : <XCircle className="w-3 h-3 shrink-0" />}

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth, useAuthConfig } from '@/lib/auth-context';
+import { API_URL } from '@/lib/api-client';
+import { TextInput } from '@/components/FormFields';
 import Link from 'next/link';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -69,14 +69,8 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded border border-gray-300 p-2 text-sm" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded border border-gray-300 p-2 text-sm" required />
-            </div>
+            <TextInput label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+            <TextInput label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
             <button type="submit" disabled={loading} className="w-full bg-gray-900 text-white rounded p-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>

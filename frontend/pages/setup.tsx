@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/auth-context';
 import { Loader2 } from 'lucide-react';
 import { PasswordStrengthMeter } from '@/components/PasswordStrength';
+import { TextInput } from '@/components/FormFields';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -72,18 +73,11 @@ export default function SetupPage() {
           <p className="text-sm text-gray-500 mb-6">Create the first admin account to get started.</p>
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded p-3 mb-4">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-4">
+            <TextInput label="Name" type="text" value={name} onChange={e => setName(e.target.value)} required />
+            <TextInput label="Email" type="text" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@example.com" />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full rounded border border-gray-300 p-2 text-sm" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="text" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded border border-gray-300 p-2 text-sm" required autoComplete="email" placeholder="you@example.com" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded border border-gray-300 p-2 text-sm" required autoComplete="new-password" />
-              <p className="text-[10px] text-gray-400 mt-1">Minimum 8 characters required</p>
+              <TextInput label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
+              <p className="text-[10px] text-gray-400 mt-2">Minimum 8 characters required</p>
               {password.length > 0 && <PasswordStrengthMeter password={password} />}
             </div>
             <button type="submit" disabled={loading} className="w-full bg-gray-900 text-white rounded p-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
