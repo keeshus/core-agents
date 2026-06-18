@@ -10,7 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 // POST /api/admin/seed-roles — create default roles if they don't exist
-router.post('/seed-roles', requirePermission('admin'), asyncHandler(async (_req, res) => {
+router.post('/roles/seed', requirePermission('admin'), asyncHandler(async (_req, res) => {
   const defaults = [
     { name: 'admin', description: 'Full system access', permissions: ['admin', 'flow:create', 'flow:edit', 'flow:delete', 'settings:read', 'settings:write', 'execution:approve'], is_system: true },
     { name: 'editor', description: 'Can create and edit flows', permissions: ['flow:create', 'flow:edit', 'execution:approve', 'settings:read'], is_system: true },

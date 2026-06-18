@@ -35,8 +35,8 @@ export default function UsersSettingsPage() {
     setError('');
     try {
       const [usersRes, rolesRes] = await Promise.all([
-        fetch(`${API_URL}/admin/users`, { credentials: 'include' }),
-        fetch(`${API_URL}/admin/roles`, { credentials: 'include' }),
+        fetch(`${API_URL}/users`, { credentials: 'include' }),
+        fetch(`${API_URL}/roles`, { credentials: 'include' }),
       ]);
       if (!usersRes.ok || !rolesRes.ok) throw new Error('Failed to load');
       setUsers(await usersRes.json());
@@ -52,7 +52,7 @@ export default function UsersSettingsPage() {
 
   const handleRoleChange = async (userId: string, roleId: string) => {
     try {
-      const res = await fetch(`${API_URL}/admin/users/${userId}/role`, {
+      const res = await fetch(`${API_URL}/users/${userId}/role`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -73,7 +73,7 @@ export default function UsersSettingsPage() {
     if (!confirm('Delete this user? This cannot be undone.')) return;
     setDeleting(userId);
     try {
-      const res = await fetch(`${API_URL}/admin/users/${userId}`, {
+      const res = await fetch(`${API_URL}/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
