@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth, useAuthConfig } from '@/lib/auth-context';
 import { API_URL } from '@/lib/api-client';
-import { TextInput } from '@/components/FormFields';
 import Link from 'next/link';
 
 export default function LoginPage() {
@@ -69,8 +68,14 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <TextInput label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-            <TextInput label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded border border-gray-300 p-2 text-sm" required />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded border border-gray-300 p-2 text-sm" required />
+            </div>
             <button type="submit" disabled={loading} className="w-full bg-gray-900 text-white rounded p-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
