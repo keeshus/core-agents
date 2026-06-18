@@ -3,6 +3,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options?.headers },
+    credentials: 'include',
     ...options,
   });
   if (!res.ok) {
@@ -22,6 +23,7 @@ export async function* streamSSE(url: string, body: unknown, signal?: AbortSigna
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),
+    credentials: 'include',
     signal,
   });
 
@@ -68,6 +70,7 @@ export const api = {
       const res = await fetch(`${BASE_URL}/flows/${id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ input }),
       });
       if (!res.ok) {
@@ -109,5 +112,10 @@ export const api = {
     update: (id: string, data: any) => request<any>(`/mcp-servers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/mcp-servers/${id}`, { method: 'DELETE' }),
     refreshTools: (id: string) => request<any>(`/mcp-servers/${id}/refresh`, { method: 'POST' }),
+  },
+  auth: {
+    profile: () => request<any>('/auth/profile'),
+    updateProfile: (data: { name?: string; email?: string }) =>
+      request<any>('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
   },
 };

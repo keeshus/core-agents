@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { vectorStores } from '../db/schema.js';
+import { requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { registerStore, createQdrantStore } from '../vector-stores/index.js';
 
@@ -52,7 +53,7 @@ router.get('/vector-stores/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-router.post('/vector-stores', asyncHandler(async (req, res) => {
+router.post('/vector-stores', requirePermission('settings:write'), asyncHandler(async (req, res) => {
   const { name, storeType = 'qdrant', url, apiKey } = req.body;
   if (!name || !url) { res.status(400).json({ error: 'name and url required' }); return; }
 
@@ -70,7 +71,7 @@ router.post('/vector-stores', asyncHandler(async (req, res) => {
   res.status(201).json(row);
 }));
 
-router.put('/vector-stores/:id', asyncHandler(async (req, res) => {
+router.put('/vector-stores/:id', requirePermission('settings:write'), asyncHandler(async (req, res) => {
   const id = req.params.id as string;
   const data: Record<string, unknown> = { updated_at: new Date() };
   const { name, url, apiKey } = req.body;
@@ -93,7 +94,7 @@ router.put('/vector-stores/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-router.delete('/vector-stores/:id', asyncHandler(async (req, res) => {
+router.delete('/vector-stores/:id', requirePermission('settings:write'), asyncHandler(async (req, res) => {
   const id = req.params.id as string;
   const [row] = await db.select().from(vectorStores).where(eq(vectorStores.id, id));
   if (row) {

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { embeddingProviders } from '../db/schema.js';
+import { requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
@@ -17,7 +18,7 @@ router.get('/embedding-providers/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-router.post('/embedding-providers', asyncHandler(async (req, res) => {
+router.post('/embedding-providers', requirePermission('settings:write'), asyncHandler(async (req, res) => {
   const { name, providerType, baseUrl, apiKey, model } = req.body;
   if (!name || !providerType || !apiKey) {
     res.status(400).json({ error: 'name, providerType, and apiKey required' }); return;
@@ -28,7 +29,7 @@ router.post('/embedding-providers', asyncHandler(async (req, res) => {
   res.status(201).json(row);
 }));
 
-router.put('/embedding-providers/:id', asyncHandler(async (req, res) => {
+router.put('/embedding-providers/:id', requirePermission('settings:write'), asyncHandler(async (req, res) => {
   const id = req.params.id as string;
   const data: Record<string, unknown> = { updated_at: new Date() };
   const { name, providerType, baseUrl, apiKey, model } = req.body;
@@ -42,7 +43,7 @@ router.put('/embedding-providers/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-router.delete('/embedding-providers/:id', asyncHandler(async (req, res) => {
+router.delete('/embedding-providers/:id', requirePermission('settings:write'), asyncHandler(async (req, res) => {
   const id = req.params.id as string;
   await db.delete(embeddingProviders).where(eq(embeddingProviders.id, id));
   res.status(204).send();

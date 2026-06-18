@@ -78,6 +78,15 @@ const catalog: NodeCatalogEntry[] = [
     outputs: 1,
   },
   {
+    type: 'stop',
+    label: 'Stop',
+    category: 'processing',
+    description: 'Immediately stops the flow execution',
+    defaultConfig: { message: 'Execution stopped', status: 'cancelled' },
+    inputs: 1,
+    outputs: 0,
+  },
+  {
     type: 'output',
     label: 'Output',
     category: 'output',

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle, XCircle, Clock, Loader2, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, Zap, StopCircle, Bug } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '@/lib/auth-context';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -43,13 +44,16 @@ const trunc = (s: string, n: number) => s.length > n ? s.slice(0, n) + '...' : s
 export default function ExecutionHistoryPage() {
   const router = useRouter();
   const { id: flowId } = router.query;
+  const { user } = useAuth();
+  const can = (perm: string) => user?.permissions?.includes(perm) ?? false;
+  const backHref = user && !can('flow:create') ? '/approvals' : '/';
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [selected, setSelected] = useState<Execution | null>(null);
   const [steps, setSteps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [feedback, setFeedback] = useState('');
+  const [feedback, setFeedback] = useState<Record<string, string>>({});
   const [cancelling, setCancelling] = useState<string | null>(null);
 
   const cancel = async (execId: string, e: React.MouseEvent) => {
@@ -64,8 +68,11 @@ export default function ExecutionHistoryPage() {
 
   useEffect(() => {
     if (!flowId) return;
-    fetch(`${API_URL}/flows/${flowId}/executions`)
-      .then(r => r.json()).then(setExecutions).catch(() => {}).finally(() => setLoading(false));
+    fetch(`${API_URL}/flows/${flowId}/executions`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setExecutions(Array.isArray(data) ? data : []))
+      .catch(() => setExecutions([]))
+      .finally(() => setLoading(false));
   }, [flowId]);
 
   const viewDetails = async (execId: string) => {
@@ -85,7 +92,7 @@ export default function ExecutionHistoryPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/" className="text-gray-400 hover:text-gray-600"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={backHref} className="text-gray-400 hover:text-gray-600"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h1 className="text-2xl font-bold text-gray-900">Execution History</h1></div>
         </div>
         {loading ? <p className="text-gray-500 text-sm">Loading...</p> : executions.length === 0 ? (
@@ -122,21 +129,22 @@ export default function ExecutionHistoryPage() {
                       <div className="w-full">
                         {exec.output?._hitlAllowFeedback !== false && (
                           <textarea
-                            value={feedback}
-                            onChange={(e) => setFeedback(e.target.value)}
+                            value={feedback[exec.id] || ''}
+                            onChange={(e) => setFeedback(prev => ({ ...prev, [exec.id]: e.target.value }))}
                             placeholder="Optional feedback..."
                             rows={2}
                             className="w-full mb-2 text-xs border border-gray-300 rounded p-2 resize-none"
                           />
                         )}
                         <div className="flex items-center gap-2 justify-end">
-                        {(exec.output?._hitlButtons || [{ label: 'Approve', value: 'approved' }, { label: 'Reject', value: 'rejected' }]).map((btn: any) => (
+                        {(exec.output?._hitlButtons || [{ label: 'Approve', value: 'approved' }]).map((btn: any) => (
                           <button key={btn.value} onClick={async (e) => {
                             e.stopPropagation();
+                            const fb = feedback[exec.id] || '';
                             if (btn.value === 'rejected') {
                               await fetch(`${API_URL}/executions/${exec.id}/reject`, { method: 'POST' });
                             } else {
-                              await fetch(`${API_URL}/executions/${exec.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: btn.value, feedback }) });
+                              await fetch(`${API_URL}/executions/${exec.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: btn.value, feedback: fb, hitlNodeId: exec.output?._hitlNodeId || undefined }) });
                             }
                             window.location.reload();
                           }} className={`flex items-center gap-1 px-2 py-1 rounded text-xs shrink-0 ${

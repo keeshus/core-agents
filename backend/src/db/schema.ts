@@ -17,6 +17,7 @@ export const executionStatusEnum = pgEnum('execution_status', [
   'completed',
   'failed',
   'cancelled',
+  'awaiting_approval',
 ]);
 
 export const executionStepStatusEnum = pgEnum('execution_step_status', [
@@ -71,6 +72,7 @@ export const executions = pgTable('executions', {
   input: jsonb('input').notNull(),
   output: jsonb('output'),
   error: text('error'),
+  pending_hitls: jsonb('pending_hitls').default('[]'),
   started_at: timestamp('started_at'),
   completed_at: timestamp('completed_at'),
   created_at: timestamp('created_at').notNull().defaultNow(),
@@ -180,4 +182,40 @@ export const agentStore = pgTable('agent_store', {
   value: jsonb('value').notNull().default('null'),
   updated_at: timestamp('updated_at').notNull().defaultNow(),
   created_at: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const roles = pgTable('roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  description: text('description').notNull().default(''),
+  permissions: text('permissions').array().notNull().default([]),
+  is_system: boolean('is_system').notNull().default(false),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  password_hash: text('password_hash').notNull(),
+  name: text('name').notNull(),
+  role_id: uuid('role_id').references(() => roles.id),
+  is_active: boolean('is_active').notNull().default(true),
+  provider: text('provider').notNull().default('local'),
+  provider_id: text('provider_id'),
+  last_login_at: timestamp('last_login_at'),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  updated_at: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const userAssignments = pgTable('user_assignments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  execution_id: uuid('execution_id').notNull().references(() => executions.id),
+  hitl_node_id: text('hitl_node_id').notNull(),
+  assigned_to_user_id: uuid('assigned_to_user_id').references(() => users.id),
+  assigned_to_role_id: uuid('assigned_to_role_id').references(() => roles.id),
+  status: text('status').notNull().default('pending'),
+  feedback: text('feedback'),
+  decided_by_user_id: uuid('decided_by_user_id').references(() => users.id),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  decided_at: timestamp('decided_at'),
 });

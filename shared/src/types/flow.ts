@@ -12,6 +12,7 @@ export const NODE_TYPES = [
   'output',
   'parallel',
   'hitl',
+  'stop',
 ] as const;
 
 export type NodeType = (typeof NODE_TYPES)[number];
@@ -114,6 +115,15 @@ export interface HitlNodeData extends BaseNodeData {
     prompt: string;
     buttons: Array<{ label: string; value: string }>;
     allowFeedback?: boolean;
+    assignedTo?: { type: 'user'; userId: string } | { type: 'role'; roleId: string };
+  };
+}
+
+export interface StopNodeData extends BaseNodeData {
+  type: 'stop';
+  config: {
+    message: string;
+    status: 'cancelled' | 'failed';
   };
 }
 
@@ -126,7 +136,8 @@ export type NodeData =
   | CodeNodeData
   | OutputNodeData
   | ParallelNodeData
-  | HitlNodeData;
+  | HitlNodeData
+  | StopNodeData;
 
 // ── Edge ─────────────────────────────────────────────────────
 
@@ -173,7 +184,8 @@ export type ExecutionStatus =
   | 'running'
   | 'completed'
   | 'failed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'awaiting_approval';
 
 export interface Execution {
   id: string;
@@ -210,6 +222,8 @@ export type SSEEventType =
   | 'stream.token'
   | 'execution.completed'
   | 'execution.failed'
+  | 'execution.paused'
+  | 'execution.stopped'
   | 'log';
 
 export interface SSEEvent {

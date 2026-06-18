@@ -1,18 +1,44 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { api } from '@/lib/api-client';
+import { useAuth, useAuthConfig } from '@/lib/auth-context';
 import Link from 'next/link';
-import { Plus, Trash2, Edit3, MessageCircle, Settings, Play, Loader2, CheckCircle, XCircle, History, Bug } from 'lucide-react';
+import { Plus, Trash2, Edit3, MessageCircle, Settings, Play, Loader2, CheckCircle, XCircle, History, Bug, LogIn, UserPlus, LogOut, User, ThumbsUp } from 'lucide-react';
 
 export default function FlowsListPage() {
+  const { user, loading: authLoading, logout } = useAuth();
+  const authConfig = useAuthConfig();
   const [flows, setFlows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<Record<string, 'running' | 'ok' | 'error' | null>>({});
   const router = useRouter();
 
+  const can = (perm: string) => user?.permissions?.includes(perm) ?? false;
+  const isReader = user && !can('flow:create');
+
+  // Readers go straight to the approvals page
   useEffect(() => {
-    api.flows.list().then(setFlows).finally(() => setLoading(false));
-  }, []);
+    if (!authLoading && isReader) {
+      router.replace('/approvals');
+    }
+  }, [authLoading, isReader, router]);
+
+  useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+    if (!user || isReader) {
+      setLoading(false);
+      return;
+    }
+    api.flows.list().then(setFlows).catch(() => setFlows([])).finally(() => setLoading(false));
+  }, [user, authLoading, isReader]);
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
 
   const handleCreate = async () => {
     const flow = await api.flows.create({ name: 'New Flow', description: '' });
@@ -45,24 +71,80 @@ export default function FlowsListPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Core Agents</h1>
-            <p className="text-sm text-gray-500 mt-1">Build and manage your LLM agent workflows</p>
+            {!isReader && <p className="text-sm text-gray-500 mt-1">Build and manage your LLM agent workflows</p>}
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/settings" className="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Settings">
-              <Settings className="w-5 h-5" />
-            </Link>
-            <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-              <Plus className="w-4 h-4" /> New Flow
-            </button>
+            {authLoading ? null : user ? (
+              <>
+                <span className="text-xs text-gray-500 mr-1">{user.name}</span>
+                <Link href="/profile" className="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Profile">
+                  <User className="w-5 h-5" />
+                </Link>
+                {can('execution:approve') && (
+                  <Link href="/approvals" className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="All pending approvals">
+                    <ThumbsUp className="w-4 h-4" /> Approvals
+                  </Link>
+                )}
+                {can('settings:read') && !isReader && (
+                  <Link href="/settings" className="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Settings">
+                    <Settings className="w-5 h-5" />
+                  </Link>
+                )}
+                {can('flow:create') && (
+                  <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                    <Plus className="w-4 h-4" /> New Flow
+                  </button>
+                )}
+                <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Sign Out">
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" title="Sign In">
+                  <LogIn className="w-4 h-4" /> Sign In
+                </Link>
+                <Link href="/register" className="flex items-center gap-1 px-3 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors" title="Create Account">
+                  <UserPlus className="w-4 h-4" /> Register
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
-        {loading ? (
+        {authLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+          </div>
+        ) : !user ? (
+          <div className="text-center py-16 bg-white rounded-xl border max-w-lg mx-auto">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome to Core Agents</h2>
+            <p className="text-sm text-gray-500 mb-6">Build and manage your LLM agent workflows with a visual drag-and-drop editor.</p>
+            <div className="flex items-center justify-center gap-3">
+              {authConfig?.sso ? (
+                <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/sso/login`} className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium">
+                  Sign in with {authConfig.sso.name}
+                </a>
+              ) : (
+                <>
+                  <Link href="/login" className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium">
+                    <LogIn className="w-4 h-4" /> Sign In
+                  </Link>
+                  <Link href="/register" className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+                    <UserPlus className="w-4 h-4" /> Create Account
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        ) : loading ? (
           <p className="text-gray-500 text-sm">Loading...</p>
         ) : flows.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border">
             <p className="text-gray-400 mb-2">No flows yet</p>
-            <button onClick={handleCreate} className="text-blue-600 hover:text-blue-700 text-sm font-medium">Create your first flow</button>
+            {can('flow:create') && (
+              <button onClick={handleCreate} className="text-blue-600 hover:text-blue-700 text-sm font-medium">Create your first flow</button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -88,18 +170,26 @@ export default function FlowsListPage() {
                   <Link href={`/chat/${flow.id}`} className="p-2 text-gray-400 hover:text-green-600 transition-colors" title="Chat with this agent">
                     <MessageCircle className="w-4 h-4" />
                   </Link>
-                  <Link href={`/flows/${flow.id}/edit?debug=1`} className="p-2 text-gray-400 hover:text-purple-600 transition-colors" title="Debug this flow">
-                    <Bug className="w-4 h-4" />
-                  </Link>
-                  <Link href={`/flows/${flow.id}/executions`} className="p-2 text-gray-400 hover:text-purple-600 transition-colors" title="Debug history">
-                    <History className="w-4 h-4" />
-                  </Link>
-                  <Link href={`/flows/${flow.id}/edit`} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Edit flow">
-                    <Edit3 className="w-4 h-4" />
-                  </Link>
-                  <button onClick={() => handleDelete(flow.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Delete flow">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {can('flow:edit') && (
+                    <Link href={`/flows/${flow.id}/edit?debug=1`} className="p-2 text-gray-400 hover:text-purple-600 transition-colors" title="Debug this flow">
+                      <Bug className="w-4 h-4" />
+                    </Link>
+                  )}
+                  {can('execution:approve') && (
+                    <Link href={`/flows/${flow.id}/executions`} className="p-2 text-gray-400 hover:text-purple-600 transition-colors" title="Executions">
+                      <History className="w-4 h-4" />
+                    </Link>
+                  )}
+                  {can('flow:edit') && (
+                    <Link href={`/flows/${flow.id}/edit`} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Edit flow">
+                      <Edit3 className="w-4 h-4" />
+                    </Link>
+                  )}
+                  {can('flow:delete') && (
+                    <button onClick={() => handleDelete(flow.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Delete flow">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

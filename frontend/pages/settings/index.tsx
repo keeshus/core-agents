@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { Cpu, Server, BookOpen, ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 export default function SettingsIndex() {
+  const { user } = useAuth();
+  const can = (perm: string) => user?.permissions?.includes(perm) ?? false;
+  const backHref = user && !can('flow:create') ? '/approvals' : '/';
   const sections = [
     {
       href: '/settings/endpoints',
@@ -27,7 +31,7 @@ export default function SettingsIndex() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/" className="text-gray-400 hover:text-gray-600">
+          <Link href={backHref} className="text-gray-400 hover:text-gray-600">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>

@@ -5,6 +5,7 @@ import { LLMAgentConfig } from '@/components/flow/config/LLMAgentConfig';
 import { MCPToolConfig } from '@/components/flow/config/MCPToolConfig';
 import { RetrieverConfig } from '@/components/flow/config/RetrieverConfig';
 import { TemplateAutocomplete } from '@/components/flow/config/TemplateAutocomplete';
+import { HITLNodeConfig } from '@/components/flow/config/HITLNodeConfig';
 
 const NODE_LABELS: Record<string, string> = {
   trigger: 'Trigger',
@@ -430,96 +431,13 @@ export function NodeConfigModal({
           )}
 
           {node.data.type === 'hitl' && (
-            <div className="space-y-3">
-              <label className="block">
-                <span className="text-xs font-medium text-gray-700">Prompt for the User</span>
-                <TemplateAutocomplete
-                  value={node.data.config.prompt || ''}
-                  onChange={(v) => onConfigChange({ prompt: v })}
-                  placeholder="Please review the generated content before proceeding... Type {{ for field suggestions"
-                  rows={3}
-                  nodeId={node.id}
-                  nodes={nodes}
-                  edges={edges}
-                  selectedFields={node.data.config?.inputFields}
-                />
-              </label>
-              <div className="space-y-2">
-                <span className="text-sm font-medium text-gray-700 block">Buttons</span>
-                {(
-                  node.data.config.buttons || [
-                    { label: 'Approve', value: 'approved' },
-                    { label: 'Reject', value: 'rejected' },
-                  ]
-                ).map((btn: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      className="flex-1 rounded border border-gray-300 p-2 text-sm"
-                      value={btn.label}
-                      onChange={(e) => {
-                        const btns = [...(node.data.config.buttons || [{ label: 'Approve', value: 'approved' }, { label: 'Reject', value: 'rejected' }])];
-                        btns[i] = { ...btns[i], label: e.target.value };
-                        onConfigChange({ buttons: btns });
-                      }}
-                      placeholder="Button label"
-                    />
-                    <input
-                      className="flex-1 rounded border border-gray-300 p-2 text-sm font-mono"
-                      value={btn.value}
-                      onChange={(e) => {
-                        const btns = [...(node.data.config.buttons || [{ label: 'Approve', value: 'approved' }, { label: 'Reject', value: 'rejected' }])];
-                        btns[i] = { ...btns[i], value: e.target.value };
-                        onConfigChange({ buttons: btns });
-                      }}
-                      placeholder="value"
-                    />
-                    <button
-                      onClick={() => {
-                        const btns = [
-                          ...(node.data.config.buttons || [
-                            { label: 'Approve', value: 'approved' },
-                            { label: 'Reject', value: 'rejected' },
-                          ]),
-                        ];
-                        btns.splice(i, 1);
-                        onConfigChange({
-                          buttons: btns.length > 0 ? btns : [{ label: 'Approve', value: 'approved' }],
-                        });
-                      }}
-                      className="w-6 h-6 flex items-center justify-center text-xs bg-red-200 text-red-800 rounded hover:bg-red-300 shrink-0 font-bold"
-                      title="Remove"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={() => {
-                    const btns = [
-                      ...(node.data.config.buttons || [
-                        { label: 'Approve', value: 'approved' },
-                        { label: 'Reject', value: 'rejected' },
-                      ]),
-                    ];
-                    onConfigChange({ buttons: [...btns, { label: '', value: '' }] });
-                  }}
-                  className="text-sm text-blue-600 hover:underline block"
-                >
-                  + Add Button
-                </button>
-              </div>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={node.data.config?.allowFeedback !== false}
-                  onChange={(e) => onConfigChange({ allowFeedback: e.target.checked })}
-                  className="rounded accent-blue-500"
-                />
-                <span className="text-sm text-gray-700">Allow reviewer feedback</span>
-                <span className="text-xs text-gray-400">(text input field)</span>
-              </label>
-              <p className="text-xs text-gray-400">Use {'{{'}input.Label.field{'}}'} in the prompt above to reference upstream data.</p>
-            </div>
+            <HITLNodeConfig
+              config={node.data.config}
+              onChange={onConfigChange}
+              nodeId={node.id}
+              nodes={nodes}
+              edges={edges}
+            />
           )}
 
           {![

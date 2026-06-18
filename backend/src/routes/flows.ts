@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { flows, flowVersions, executions, executionSteps, chatMessages, chatSessions } from '../db/schema.js';
+import { requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
@@ -31,9 +32,10 @@ router.get(
   }),
 );
 
-// POST /api/flows — create new flow
+// POST /api/flows — create new flow (admin / editor)
 router.post(
   '/',
+  requirePermission('flow:create'),
   asyncHandler(async (req, res) => {
     const { name, description = '', nodes = [], edges = [] } = req.body;
 
@@ -51,9 +53,10 @@ router.post(
   }),
 );
 
-// PUT /api/flows/:id — update flow
+// PUT /api/flows/:id — update flow (admin / editor)
 router.put(
   '/:id',
+  requirePermission('flow:edit'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
     const { name, description, nodes, edges } = req.body;
@@ -78,9 +81,10 @@ router.put(
   }),
 );
 
-// DELETE /api/flows/:id — delete flow
+// DELETE /api/flows/:id — delete flow (admin only)
 router.delete(
   '/:id',
+  requirePermission('flow:delete'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
 

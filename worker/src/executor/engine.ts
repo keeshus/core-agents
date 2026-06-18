@@ -25,6 +25,17 @@ export class HitlPauseError extends Error {
   }
 }
 
+export class FlowStopError extends Error {
+  public nodeId: string;
+  public status: string;
+  constructor(nodeId: string, message?: string, status?: string) {
+    super(message || 'Execution stopped');
+    this.name = 'FlowStopError';
+    this.nodeId = nodeId;
+    this.status = status || 'cancelled';
+  }
+}
+
 export type EventCallback = (nodeId: string, event: SSEEvent) => void | Promise<void>;
 
 // Database lookups the executor needs at runtime
@@ -103,8 +114,8 @@ export class FlowExecutor {
         const allFiltered = incomingEdges.every((e, i) => {
           if (!e.condition?.label) return false;
           const src = sourceOutputs[i] as Record<string, unknown> | undefined;
-          const routeLabel = (src as any)?.label ?? (src as any)?.decision;
-          return routeLabel !== e.condition.label;
+          const branchLabel = (src as any)?.label;
+          return branchLabel !== e.condition.label;
         });
 
         if (allFiltered && incomingEdges.some(e => e.condition?.label)) {
@@ -170,10 +181,23 @@ export class FlowExecutor {
       });
 
       try {
-        // For HITL replay: pass through approved content
+        // For HITL replay: separate what was displayed vs what gets forwarded
         let nodeInput = filteredInput;
         if (node.data.type === 'hitl' && replayFrom && node.id === replayFrom) {
-          nodeInput = { ...(filteredInput as any), _approved: true };
+          const cfg = (node.data as any)?.config || {};
+          const displayFields: string[] = cfg.displayFields || [];
+          const forwardFields: string[] = cfg.forwardFields || [];
+          const raw = stepInput as Record<string, unknown> | undefined || {};
+          const displayed: Record<string, unknown> = {};
+          const forwarded: Record<string, unknown> = {};
+          if (displayFields.length > 0) {
+            for (const f of displayFields) { if (raw[f] !== undefined) displayed[f] = raw[f]; }
+          } else { Object.assign(displayed, raw); }
+          if (forwardFields.length > 0) {
+            for (const f of forwardFields) { if (raw[f] !== undefined) forwarded[f] = raw[f]; }
+          } else { Object.assign(forwarded, raw); }
+          // Store displayed for UI, pass forwarded to next node
+          nodeInput = { ...(filteredInput as any), _reviewedContent: forwarded };
         }
         const output = await this.executeNode(node, nodeInput, context, onEvent);
         const outputKey = (node.data.label || node.id).replace(/\s+/g, '_');
@@ -609,6 +633,13 @@ export class FlowExecutor {
 
         // text and json: return accumulated data as-is
         return inp || input;
+      }
+
+      case 'stop': {
+        const config = (nodeData as any).config || {};
+        const msg = config.message || 'Execution stopped';
+        const st = config.status || 'cancelled';
+        throw new FlowStopError(node.id, msg, st);
       }
 
       default:

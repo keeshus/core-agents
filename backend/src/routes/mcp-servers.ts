@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { mcpServers } from '../db/schema.js';
+import { requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
@@ -31,9 +32,10 @@ router.get(
   }),
 );
 
-// POST /api/mcp-servers — create server
+// POST /api/mcp-servers — create server (admin only)
 router.post(
   '/',
+  requirePermission('settings:write'),
   asyncHandler(async (req, res) => {
     const { name, url, tools = [], enabled = true } = req.body;
 
@@ -56,9 +58,10 @@ router.post(
   }),
 );
 
-// PUT /api/mcp-servers/:id — update server
+// PUT /api/mcp-servers/:id — update server (admin only)
 router.put(
   '/:id',
+  requirePermission('settings:write'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
     const { name, url, tools, enabled } = req.body;
@@ -83,9 +86,10 @@ router.put(
   }),
 );
 
-// DELETE /api/mcp-servers/:id — delete server
+// DELETE /api/mcp-servers/:id — delete server (admin only)
 router.delete(
   '/:id',
+  requirePermission('settings:write'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
 
@@ -100,9 +104,10 @@ router.delete(
   }),
 );
 
-// POST /api/mcp-servers/:id/refresh — Refresh tools list from server
+// POST /api/mcp-servers/:id/refresh — Refresh tools list from server (admin only)
 router.post(
   '/:id/refresh',
+  requirePermission('settings:write'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
 

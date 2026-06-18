@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { llmEndpoints } from '../db/schema.js';
+import { requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
@@ -31,9 +32,10 @@ router.get(
   }),
 );
 
-// POST /api/llm-endpoints — create endpoint
+// POST /api/llm-endpoints — create endpoint (admin only)
 router.post(
   '/',
+  requirePermission('settings:write'),
   asyncHandler(async (req, res) => {
     const { name, providerType, baseUrl, apiKey, defaultModel, models = [] } = req.body;
 
@@ -64,9 +66,10 @@ router.post(
   }),
 );
 
-// PUT /api/llm-endpoints/:id — update endpoint
+// PUT /api/llm-endpoints/:id — update endpoint (admin only)
 router.put(
   '/:id',
+  requirePermission('settings:write'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
     const { name, providerType, baseUrl, apiKey, defaultModel, models } = req.body;
@@ -100,9 +103,10 @@ router.put(
   }),
 );
 
-// DELETE /api/llm-endpoints/:id — delete endpoint
+// DELETE /api/llm-endpoints/:id — delete endpoint (admin only)
 router.delete(
   '/:id',
+  requirePermission('settings:write'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
 

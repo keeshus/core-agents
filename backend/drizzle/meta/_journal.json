@@ -15,6 +15,20 @@
       "when": 1781251698267,
       "tag": "0001_cuddly_luminals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781300000000,
+      "tag": "0002_copper_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781774305845,
+      "tag": "0003_flat_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

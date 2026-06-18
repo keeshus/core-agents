@@ -39,6 +39,7 @@ services:
     environment:
       - PORT=3001
       - DATABASE_URL=postgres://coreagents:coreagents@postgres:5432/coreagents
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
     restart: always
 
   valkey:

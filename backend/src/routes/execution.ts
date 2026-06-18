@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { executions, executionSteps, flows, llmEndpoints, mcpServers, embeddingProviders, vectorStores } from '../db/schema.js';
-import { FlowExecutor, HitlPauseError } from '../../../worker/src/executor/engine.js';
+import { FlowExecutor, HitlPauseError, FlowStopError } from '../../../worker/src/executor/engine.js';
 import { getStore } from '../vector-stores/index.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import type { SSEEvent, FlowDefinition, ExecutionStep } from 'core-agents-shared';
@@ -95,7 +95,7 @@ router.post(
     });
 
     // Build execution context: resolve LLM endpoints from DB ------
-    const executionContext = {
+    const executionContext: import('../../../worker/src/executor/engine.js').ExecutionContext = {
       getEndpoint: async (endpointId: string) => {
         const [endpoint] = await db
           .select()
@@ -240,13 +240,40 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (err: unknown) {
+      // Handle FlowStop — terminate execution immediately
+      if (err instanceof FlowStopError) {
+        activeExecutors.delete(exec.id);
+        await db
+          .update(executions)
+          .set({
+            status: err.status as any,
+            error: err.message,
+            completed_at: new Date(),
+          })
+          .where(eq(executions.id, exec.id));
+
+        emitSSE({
+          type: 'execution.stopped',
+          executionId: exec.id,
+          data: { status: err.status, message: err.message },
+          timestamp: new Date().toISOString(),
+        });
+        res.end();
+        return;
+      }
+
       // Handle HITL pause — save partial outputs and await approval
       if (err instanceof HitlPauseError) {
         activeExecutors.delete(exec.id);
         const hitlCfg = (flowDef.nodes || []).find((n) => n.id === err.nodeId)?.data?.config || {};
+        const hitlEntry = { nodeId: err.nodeId, prompt: err.prompt, buttons: err.buttons, savedOutputs: err.savedOutputs };
         await db
           .update(executions)
-          .set({ status: 'awaiting_approval', output: { ...err.savedOutputs, _hitlButtons: err.buttons, _hitlPrompt: err.prompt, _hitlAllowFeedback: hitlCfg.allowFeedback !== false } as any })
+          .set({
+            status: 'awaiting_approval',
+            output: { ...err.savedOutputs, _hitlButtons: err.buttons, _hitlPrompt: err.prompt, _hitlAllowFeedback: (hitlCfg as any).allowFeedback !== false, _hitlNodeId: err.nodeId } as any,
+            pending_hitls: JSON.stringify([hitlEntry]) as any,
+          })
           .where(eq(executions.id, exec.id));
 
         emitSSE({
@@ -288,22 +315,23 @@ router.post(
 
 router.post('/executions/:executionId/approve', asyncHandler(async (req, res) => {
   const executionId = req.params.executionId as string;
-  const { feedback = '', decision = 'approved', data: userData = {} } = req.body || {};
+  const { feedback = '', decision = 'approved', data: userData = {}, hitlNodeId } = req.body || {};
 
   const [exec] = await db.select().from(executions).where(eq(executions.id, executionId));
   if (!exec) { res.status(404).json({ error: 'Execution not found' }); return; }
   if (exec.status !== 'awaiting_approval') { res.status(400).json({ error: 'Not awaiting approval' }); return; }
 
+  // Find the hitlNodeId — use provided one or fall back to first pending
+  const pendingHitls = (exec.pending_hitls || []) as Array<{ nodeId: string; prompt: string; buttons: Array<{ label: string; value: string }>; savedOutputs: Record<string, unknown> }>;
+  const hitlEntry = hitlNodeId
+    ? pendingHitls.find((h: any) => h.nodeId === hitlNodeId)
+    : pendingHitls[0];
+  if (!hitlEntry) { res.status(400).json({ error: 'No pending HITL found' }); return; }
+
   // Load the flow
   const [flow] = await db.select().from(flows).where(eq(flows.id, exec.flow_id));
   if (!flow) { res.status(404).json({ error: 'Flow not found' }); return; }
 
-  // Find the HITL node
-  const nodes = (flow.nodes || []) as any[];
-  const hitlNode = nodes.find((n: any) => n.data?.type === 'hitl');
-  if (!hitlNode) { res.status(400).json({ error: 'No HITL node in flow' }); return; }
-
-  // Replay from the HITL node with user input merged
   const flowDef: FlowDefinition = {
     id: flow.id, name: flow.name, description: flow.description || '',
     nodes: flow.nodes as any, edges: flow.edges as any, version: flow.version,
@@ -315,6 +343,11 @@ router.post('/executions/:executionId/approve', asyncHandler(async (req, res) =>
       const [ep] = await db.select().from(llmEndpoints).where(eq(llmEndpoints.id, endpointId));
       if (!ep) return null;
       return { providerType: ep.provider_type as 'anthropic' | 'openai' | 'litellm', apiKey: ep.api_key, baseUrl: ep.base_url };
+    },
+    getMCPServer: async (serverId: string) => {
+      const [server] = await db.select().from(mcpServers).where(eq(mcpServers.id, serverId));
+      if (!server) return null;
+      return { id: server.id, name: server.name, url: server.url, tools: server.tools as any[], enabled: server.enabled };
     },
     getEmbeddingProvider: async (providerId: string) => {
       const [ep] = await db.select().from(embeddingProviders).where(eq(embeddingProviders.id, providerId));
@@ -331,7 +364,7 @@ router.post('/executions/:executionId/approve', asyncHandler(async (req, res) =>
   };
 
   const executor = new FlowExecutor();
-  const savedOutputs = (exec.output || {}) as Record<string, unknown>;
+  const savedOutputs = hitlEntry.savedOutputs || {};
   const mergedInput = { ...(exec.input || {}), _approved: true, _feedback: feedback, _decision: decision, ...userData };
 
   try {
@@ -340,23 +373,51 @@ router.post('/executions/:executionId/approve', asyncHandler(async (req, res) =>
       mergedInput,
       async () => {}, // no SSE needed for replay
       executionContext,
-      { replayFrom: hitlNode.id, replayOutputs: savedOutputs, inputOverride: mergedInput },
+      { replayFrom: hitlEntry.nodeId, replayOutputs: savedOutputs, inputOverride: mergedInput },
     );
 
-    // Save as a new execution for history
-    const [newExec] = await db.insert(executions).values({
-      flow_id: exec.flow_id,
-      status: 'completed',
-      input: mergedInput,
-      output: result.output as any,
-      started_at: new Date(),
-      completed_at: new Date(),
-    }).returning();
+    // Success — no more HITLs hit. Mark execution as completed (UPDATE, don't create new).
+    await db
+      .update(executions)
+      .set({
+        status: 'completed',
+        output: result.output as any,
+        pending_hitls: JSON.stringify([]) as any,
+        completed_at: new Date(),
+      })
+      .where(eq(executions.id, exec.id));
 
-    res.json({ status: 'completed', executionId: newExec.id, output: result.output });
+    res.json({ status: 'completed', executionId: exec.id, output: result.output });
   } catch (err) {
+    if (err instanceof HitlPauseError) {
+      // Another HITL was hit — add to pending list, set back to awaiting_approval
+      const stillPending = pendingHitls.filter((h: any) => h.nodeId !== hitlEntry.nodeId);
+      const newHitls = [...stillPending, { nodeId: err.nodeId, prompt: err.prompt, buttons: err.buttons, savedOutputs: err.savedOutputs }];
+      await db
+        .update(executions)
+        .set({
+          status: 'awaiting_approval',
+          output: { ...err.savedOutputs, _hitlButtons: err.buttons, _hitlPrompt: err.prompt } as any,
+          pending_hitls: JSON.stringify(newHitls) as any,
+        })
+        .where(eq(executions.id, exec.id));
+
+      res.json({ status: 'awaiting_approval', executionId: exec.id, message: 'Another HITL node requires approval' });
+      return;
+    }
+
+    // Handle FlowStopError or any other error
     const error = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ status: 'failed', error });
+    const isCancelled = err instanceof FlowStopError;
+    await db
+      .update(executions)
+      .set({
+        status: isCancelled ? 'cancelled' : 'failed',
+        error,
+        completed_at: new Date(),
+      })
+      .where(eq(executions.id, exec.id));
+    res.status(500).json({ status: isCancelled ? 'cancelled' : 'failed', error });
   }
 }));
 
