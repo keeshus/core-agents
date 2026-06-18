@@ -1,3 +1,6 @@
+// Suppress noisy dependency deprecation warnings (e.g. openid-client url.parse)
+process.noDeprecation = true;
+
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
