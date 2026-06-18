@@ -78,7 +78,7 @@ app.use('/api', authenticate, knowledgeRouter); // Handles /api/knowledge/*
 app.use('/api', authenticate, embeddingProvidersRouter); // Handles /api/embedding-providers/*
 app.use('/api', authenticate, vectorStoresRouter); // Handles /api/vector-stores/*
 app.use('/api', authenticate, assignmentsRouter); // Handles /api/assignments/*
-app.use('/api', authenticate, adminRouter); // Handles /api/admin/*
+app.use('/api/admin', authenticate, adminRouter); // Handles /api/admin/*
 
 // Global error handler (Express 5)
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
