@@ -35,7 +35,7 @@ router.get('/roles', requirePermission('admin'), asyncHandler(async (_req, res) 
   res.json(all);
 }));
 
-// GET /api/admin/users — list all users with roles
+// GET /api/users — list all users with roles
 router.get('/users', requirePermission('admin'), asyncHandler(async (_req, res) => {
   const all = await db
     .select({
