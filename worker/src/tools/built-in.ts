@@ -25,7 +25,7 @@ export const BUILT_IN_TOOLS: BuiltInToolInfo[] = [
   { name: 'file_read', description: 'Read a file from the shared workspace' },
   { name: 'file_write', description: 'Write content to a file in the shared workspace' },
   { name: 'file_list', description: 'List directory contents in the shared workspace' },
-  { name: 'now', description: 'Get the current UTC date and time' },
+  { name: 'now', description: 'Get the current date and time. Optionally specify a timezone (e.g. "Europe/Amsterdam", "America/New_York") or locale (e.g. "nl-NL", "ja-JP").' },
   { name: 'uuid', description: 'Generate a version 4 UUID' },
   { name: 'log', description: 'Write a log entry (info/warn/error)' },
   { name: 'fetch', description: 'Perform an HTTP GET request' },
@@ -77,7 +77,13 @@ const TOOL_SCHEMAS: Record<string, { type: string; properties: Record<string, un
       path: { type: 'string', description: 'Relative directory path (defaults to root)' },
     },
   },
-  'now': { type: 'object', properties: {} },
+  'now': {
+    type: 'object',
+    properties: {
+      timezone: { type: 'string', description: 'IANA timezone, e.g. "Europe/Amsterdam", "America/New_York". Defaults to UTC.' },
+      locale: { type: 'string', description: 'Locale for formatting, e.g. "nl-NL", "ja-JP", "en-US". Defaults to "en-US".' },
+    },
+  },
   'uuid': { type: 'object', properties: {} },
   'log': {
     type: 'object',
@@ -104,7 +110,17 @@ export async function callBuiltInTool(name: string, args: Record<string, unknown
   switch (name) {
     case 'now': {
       const d = new Date();
-      return JSON.stringify({ iso: d.toISOString(), unix: d.getTime() });
+      const timezone = (args?.timezone as string) || 'UTC';
+      const locale = (args?.locale as string) || 'en-US';
+      const formatted = new Intl.DateTimeFormat(locale, {
+        dateStyle: 'full', timeStyle: 'long', timeZone: timezone,
+      }).format(d);
+      return JSON.stringify({
+        iso: d.toISOString(),
+        unix: d.getTime(),
+        formatted,
+        timezone,
+      });
     }
     case 'uuid': {
       return JSON.stringify({ uuid: randomUUID() });
