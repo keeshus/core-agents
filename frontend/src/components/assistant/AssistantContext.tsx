@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
+import { useAuth } from '@/lib/auth-context';
 import { getToolsForPage as getTools } from './tools/registry';
 import { useConversationMemory } from './useConversationMemory';
 
@@ -72,6 +73,7 @@ function buildSystemPrompt(pageContext: PageContext | null, tools: AssistantTool
 // ── Provider ────────────────────────────────────────────────────────────────────
 
 export function AssistantProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -82,6 +84,9 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const [defaultEndpointId, setDefaultEndpointId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const memory = useConversationMemory();
+
+  // Prefix memory keys with userId so different users never share history
+  const memKey = useCallback((pageKey: string) => `${user?.id || 'anon'}:${pageKey}`, [user?.id]);
 
   const toggle = useCallback(() => setOpen(o => !o), []);
 
@@ -99,10 +104,10 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     if (!pageContext?.pageKey) return;
     const prevKey = prevKeyRef.current;
     if (prevKey && prevKey !== pageContext.pageKey) {
-      memory.save(prevKey, messages);
+      memory.save(memKey(prevKey), messages);
     }
     prevKeyRef.current = pageContext.pageKey;
-    const saved = memory.load(pageContext.pageKey);
+    const saved = memory.load(memKey(pageContext.pageKey));
     if (saved.length > 0) setMessages(saved);
   }, [pageContext?.pageKey]);
 
@@ -117,7 +122,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const clearConversation = useCallback(() => {
     setMessages([]);
     setError(null);
-    if (pageContext?.pageKey) memory.save(pageContext.pageKey, []);
+    if (pageContext?.pageKey) memory.save(memKey(pageContext.pageKey), []);
   }, [pageContext, memory]);
 
   const sendMessage = useCallback(async (text: string) => {
@@ -236,7 +241,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const prevOpenRef = useRef(open);
   useEffect(() => {
     if (prevOpenRef.current && !open && pageContext?.pageKey) {
-      memory.save(pageContext.pageKey, messages);
+      memory.save(memKey(pageContext.pageKey), messages);
     }
     prevOpenRef.current = open;
   }, [open, pageContext, messages, memory]);
