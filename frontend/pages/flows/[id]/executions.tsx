@@ -207,9 +207,39 @@ export default function ExecutionHistoryPage() {
                   {open && has && (
                     <div className="border-t bg-gray-50/50 p-4 space-y-3">
                       {step.error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-2"><AlertTriangle className="w-3 h-3 text-red-500 mt-0.5 shrink-0" /><span className="text-xs text-red-700 font-mono break-all">{step.error}</span></div>}
-                      {isLLM && step.input?.systemPrompt && <div><h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">System Prompt</h4><pre className="text-xs bg-white border rounded p-2 whitespace-pre-wrap break-all max-h-24 overflow-y-auto">{step.input.systemPrompt}</pre></div>}
-                      {step.input && !isLLM && <div><h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Input</h4><pre className="text-xs bg-white border rounded p-2 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">{JSON.stringify(step.input, null, 2)}</pre></div>}
-                      {step.output && <div><h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{isLLM ? 'LLM Response' : 'Output'}</h4>{isLLM && typeof step.output.content === 'string' ? <div className="text-xs text-gray-800 whitespace-pre-wrap break-all bg-green-50/50 rounded p-2 border border-green-100">{step.output.content}</div> : <pre className="text-xs bg-white border rounded p-2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">{JSON.stringify(step.output, null, 2)}</pre>}</div>}
+                      {step.input && (
+                        <div>
+                          {isLLM && step.input.systemPrompt && (
+                            <div className="mb-2">
+                              <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">System Prompt</h4>
+                              <pre className="text-xs bg-white border rounded p-2 whitespace-pre-wrap break-all max-h-24 overflow-y-auto">{step.input.systemPrompt}</pre>
+                            </div>
+                          )}
+                          {isLLM && (
+                            <div>
+                              <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Input</h4>
+                              <pre className="text-xs bg-white border rounded p-2 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">{JSON.stringify(step.input, null, 2)}</pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {step.output && (
+                        <div>
+                          <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{isLLM ? 'LLM Response' : 'Output'}</h4>
+                          {isLLM && typeof step.output.content === 'string' && (
+                            <div className="text-xs text-gray-800 whitespace-pre-wrap break-all bg-green-50/50 rounded p-2 border border-green-100">{step.output.content}</div>
+                          )}
+                          {isLLM && step.output.toolCalls && (
+                            <div className="mt-2">
+                              <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Tool Calls</h4>
+                              <pre className="text-xs bg-white border rounded p-2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">{JSON.stringify(step.output.toolCalls, null, 2)}</pre>
+                            </div>
+                          )}
+                          {(!isLLM || typeof step.output.content !== 'string') && (
+                            <pre className="text-xs bg-white border rounded p-2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">{JSON.stringify(step.output, null, 2)}</pre>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
