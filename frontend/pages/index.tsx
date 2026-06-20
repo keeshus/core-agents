@@ -109,7 +109,7 @@ export default function FlowsListPage() {
                     <ThumbsUp className="w-4 h-4" /> Approvals
                   </Link>
                 )}
-                {can('settings:read') && !isReader && (
+                {!isReader && (
                   <Link href="/settings" className="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Settings">
                     <Settings className="w-5 h-5" />
                   </Link>
