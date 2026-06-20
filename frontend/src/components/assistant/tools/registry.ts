@@ -69,6 +69,73 @@ const navigateTo: AssistantTool = {
   },
 };
 
+// ── Generic DOM helpers for node config modals ──────────────────────────────
+
+function findModalField(label: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {
+  const labels = document.querySelectorAll('.fixed.inset-0.z-50 label, .fixed.inset-0.z-50 span.text-xs.font-medium');
+  for (const el of labels) {
+    if (el.textContent?.trim() === label) {
+      const parent = el.closest('div') || el.parentElement;
+      if (parent) return parent.querySelector('input, textarea, select') as any;
+    }
+  }
+  return null;
+}
+
+function getActiveNodeType(): string | null {
+  const header = document.querySelector('.fixed.inset-0.z-50 span.text-\\5b 10px\\5d');
+  return header?.textContent?.trim().toLowerCase() || null;
+}
+
+// ── Node-specific tools ─────────────────────────────────────────────────────
+
+const getNodeConfig: AssistantTool = {
+  name: 'get_node_config',
+  description: 'Read all configuration fields from the currently open node config panel. Works with any node type.',
+  inputSchema: { type: 'object', properties: {} },
+  async execute() {
+    const modal = document.querySelector('.fixed.inset-0.z-50');
+    if (!modal) return 'No node config panel is open. Double-click a node to open it.';
+    const fields: Record<string, string> = {};
+    modal.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), textarea, select').forEach((el: any) => {
+      const label = el.closest('div')?.querySelector('.text-xs.font-medium, .text-\\5b 10px\\5d');
+      const name = label?.textContent?.trim() || el.placeholder || el.name || 'unknown';
+      fields[name] = el.value || el.textContent || '';
+    });
+    return JSON.stringify(fields, null, 2);
+  },
+};
+
+const updateNodeField: AssistantTool = {
+  name: 'update_node_field',
+  description: 'Update a specific field in the open node config panel. Provide the exact label text and the new value.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      label: { type: 'string', description: 'The exact label text of the field (e.g. "System Prompt", "Condition Expression")' },
+      value: { type: 'string', description: 'The new value to set' },
+    },
+    required: ['label', 'value'],
+  },
+  async execute({ label, value }) {
+    const field = findModalField(label);
+    if (!field) return `Field "${label}" not found in the open config panel.`;
+    field.value = value;
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+    return `Updated "${label}".`;
+  },
+};
+
+const getAvailableNodes: AssistantTool = {
+  name: 'get_available_nodes',
+  description: 'List all node types available in the node catalog for adding to the flow.',
+  inputSchema: { type: 'object', properties: {} },
+  async execute() {
+    return 'Available node types: trigger (starts a flow), llm-agent (calls an LLM), mcp-tool (calls an MCP tool), retriever (vector search), code (JavaScript), branch (condition routing), hitl (human approval), stop (terminates), output (returns result), parallel (concurrent branches). Click a node type button in the catalog panel on the left to add it.';
+  },
+};
+
 // ── Flow editor tools (stubs — injected by FlowEditor when active) ───────────
 
 const getFlowJson: AssistantTool = {
@@ -216,7 +283,7 @@ const getExecutionDetails: AssistantTool = {
 export const toolGroups: Record<string, AssistantTool[]> = {
   'code-node': [readCode, replaceCode],
   'navigation': [navigateTo],
-  'flow-editor': [getFlowJson, addNode],
+  'flow-editor': [getFlowJson, addNode, getNodeConfig, updateNodeField, getAvailableNodes, readCode, replaceCode],
   'settings-crud': [listEndpoints, createEndpoint, deleteEndpoint, listMcpServers],
   'approvals': [getPendingApprovals, approveExecution, rejectExecution],
   'executions': [listExecutions, getExecutionDetails],
