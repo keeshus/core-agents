@@ -71,23 +71,31 @@ const navigateTo: AssistantTool = {
 
 // ── Generic DOM helpers for node config modals ──────────────────────────────
 
-function findModalField(label: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {
-  const labels = document.querySelectorAll('.fixed.inset-0.z-50 label, .fixed.inset-0.z-50 span.text-xs.font-medium');
+// ── DOM helpers for node config panels ──────────────────────────────────────
+
+function findModalField(label: string): HTMLElement | null {
+  const labels = document.querySelectorAll('.fixed.inset-0.z-50 label, .fixed.inset-0.z-50 span.text-xs.font-medium, .fixed.inset-0.z-50 span.text-sm.font-medium');
   for (const el of labels) {
     if (el.textContent?.trim() === label) {
       const parent = el.closest('div') || el.parentElement;
-      if (parent) return parent.querySelector('input, textarea, select') as any;
+      if (!parent) return null;
+      // Try finding input, textarea, select, or checkbox
+      return parent.querySelector('input, textarea, select') as HTMLElement;
     }
   }
   return null;
 }
 
-function getActiveNodeType(): string | null {
-  const header = document.querySelector('.fixed.inset-0.z-50 span.text-\\5b 10px\\5d');
-  return header?.textContent?.trim().toLowerCase() || null;
+function reactSetValue(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string) {
+  const nativeSetter = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(el), 'value'
+  )?.set;
+  nativeSetter?.call(el, value);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-// ── Node-specific tools ─────────────────────────────────────────────────────
+// ── Node config tools (work with any open node config panel) ─────────────────
 
 const getNodeConfig: AssistantTool = {
   name: 'get_node_config',
@@ -97,11 +105,25 @@ const getNodeConfig: AssistantTool = {
     const modal = document.querySelector('.fixed.inset-0.z-50');
     if (!modal) return 'No node config panel is open. Double-click a node to open it.';
     const fields: Record<string, string> = {};
-    modal.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), textarea, select').forEach((el: any) => {
-      const label = el.closest('div')?.querySelector('.text-xs.font-medium, .text-\\5b 10px\\5d');
+
+    modal.querySelectorAll('input, textarea, select').forEach((el: any) => {
+      const label = el.closest('div')?.querySelector('label, .text-xs.font-medium, .text-sm.font-medium');
       const name = label?.textContent?.trim() || el.placeholder || el.name || 'unknown';
-      fields[name] = el.value || el.textContent || '';
+      if (el.type === 'checkbox') fields[name] = el.checked ? 'true' : 'false';
+      else fields[name] = el.value || '';
     });
+
+    // Also read the button list for HITL nodes
+    const buttonItems = modal.querySelectorAll('.space-y-2 .flex.items-center.gap-2 input');
+    if (buttonItems.length > 0) {
+      const buttons: { label: string; value: string }[] = [];
+      buttonItems.forEach((input: HTMLInputElement, i: number) => {
+        if (i % 2 === 0) buttons.push({ label: input.value, value: '' });
+        else buttons[buttons.length - 1].value = input.value;
+      });
+      fields['buttons'] = JSON.stringify(buttons);
+    }
+
     return JSON.stringify(fields, null, 2);
   },
 };
@@ -112,17 +134,25 @@ const updateNodeField: AssistantTool = {
   inputSchema: {
     type: 'object',
     properties: {
-      label: { type: 'string', description: 'The exact label text of the field (e.g. "System Prompt", "Condition Expression")' },
-      value: { type: 'string', description: 'The new value to set' },
+      label: { type: 'string', description: 'The exact label text of the field (e.g. "System Prompt", "Condition Expression", "Allow reviewer feedback")' },
+      value: { type: 'string', description: 'The new value to set. For checkboxes use "true" or "false".' },
     },
     required: ['label', 'value'],
   },
   async execute({ label, value }) {
     const field = findModalField(label);
-    if (!field) return `Field "${label}" not found in the open config panel.`;
-    field.value = value;
-    field.dispatchEvent(new Event('input', { bubbles: true }));
-    field.dispatchEvent(new Event('change', { bubbles: true }));
+    if (!field) return `Field "${label}" not found. Open the node config panel first.`;
+
+    if ((field as HTMLInputElement).type === 'checkbox') {
+      const cb = field as HTMLInputElement;
+      const checked = value === 'true' || value === '1';
+      if (cb.checked !== checked) {
+        cb.click(); // React handles checkbox changes via click
+      }
+      return `Set checkbox "${label}" to ${checked}.`;
+    }
+
+    reactSetValue(field as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value);
     return `Updated "${label}".`;
   },
 };
