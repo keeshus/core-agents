@@ -48,15 +48,53 @@ interface AssistantContextType {
 
 const AssistantContext = createContext<AssistantContextType>({} as AssistantContextType);
 
+// ── Page capability descriptions (accurate per-page) ─────────────────────────
+
+function getPageCapabilities(pageKey: string): string {
+  if (pageKey.startsWith('flow:')) {
+    return 'This page shows the visual flow editor canvas. You can add/delete/edit nodes, connect them, and configure their settings. Opening a node shows a config panel with fields specific to that node type (system prompt, condition, code, etc.). The left panel has a node catalog.';
+  }
+  if (pageKey === 'flows-list') {
+    return 'This page shows a list of all flows with their name, description, and version. You can click a flow to edit it, or use the action buttons to run, chat, debug, view executions, or delete a flow. The "New Flow" button creates a new blank flow, and you can also export/import flows. There is no search/filter bar or grid/list toggle.';
+  }
+  if (pageKey.startsWith('executions:')) {
+    return 'This page shows execution history for a flow. Each execution shows status, duration, and timestamps. Click one to see step-by-step details with input/output/error for each node. Pending HITL approvals link to the approvals page.';
+  }
+  if (pageKey === 'approvals') {
+    return 'This page shows all executions awaiting human approval. Each card shows the HITL prompt (markdown rendered), a feedback textarea (when enabled), and configurable action buttons from the HITL node config.';
+  }
+  if (pageKey === 'settings:endpoints') {
+    return 'This page lists LLM endpoint configurations (name, provider, model). You can create, edit, and delete endpoints. Each endpoint has an API key (shown masked), provider type (Anthropic/OpenAI/LiteLLM), base URL, default model, and model list. One endpoint can be marked as default for the Co-Pilot.';
+  }
+  if (pageKey === 'settings:mcp-servers') {
+    return 'This page lists MCP server configurations (name, URL, enabled status, tool count). You can add new MCP servers, edit their URL/name, toggle enabled, or delete them. The refresh button re-fetches available tools from the server.';
+  }
+  if (pageKey === 'settings:knowledge') {
+    return 'This page has two sections: Embedding Providers (configure embedding API endpoints for RAG) and Vector Stores (configure Qdrant connections). You can create, edit, and delete both.';
+  }
+  if (pageKey === 'settings:users') {
+    return 'This page shows a table of all users with their name, email, role (editable dropdown), provider, and last login. Admins can create new users, change user roles, and delete users.';
+  }
+  if (pageKey === 'profile') {
+    return 'This page shows your profile: name, email, role, permissions, provider, member since date, and last login. You can edit your name and email. There are no avatars, themes, API keys, or subscriptions.';
+  }
+  if (pageKey.startsWith('settings:')) {
+    return 'This is a settings sub-page with configuration options. Available features are visible in the page content.';
+  }
+  return '';
+}
+
 // ── Build page-aware system prompt ─────────────────────────────────────────────
 
 function buildSystemPrompt(pageContext: PageContext | null, tools: AssistantTool[]): string {
   const toolList = tools.map(t => `- ${t.name}: ${t.description}`).join('\n');
+  const capabilities = pageContext?.pageKey ? getPageCapabilities(pageContext.pageKey) : '';
   return [
     'You are Co-Pilot, an AI assistant for Core Agents — a visual LLM agent builder.',
     '',
     `Current page: ${pageContext?.description || 'Unknown page'}`,
     '',
+    ...(capabilities ? [`Page capabilities:\n${capabilities}`, ''] : ['']),
     'Available tools:',
     toolList || '  (none for this page)',
     '',
@@ -66,8 +104,7 @@ function buildSystemPrompt(pageContext: PageContext | null, tools: AssistantTool
     '- If a tool is available and relevant, use it — don\'t just describe what you could do.',
     '- If a tool fails, explain the error clearly.',
     '- If you need more information, ask the user.',
-    '- ONLY mention features that actually exist on the current page. Do NOT invent or suggest features like export/import, search/filter, themes, avatars, API keys, or subscriptions unless they are visible in the UI or available as tools.',
-    '- If the user asks what they can do, list only your available tools — do not fabricate page features.',
+    '- If asked what you can do, describe your available tools — do not invent features not listed in the Page capabilities section above.',
     '- You cannot access external URLs or APIs beyond the provided tools.',
   ].join('\n');
 }
