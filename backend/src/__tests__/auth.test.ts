@@ -25,7 +25,7 @@ describe('requirePermission', () => {
   });
 
   it('returns 403 if user lacks the required permission', () => {
-    req.user = { userId: '1', email: 'a@b.com', role: 'viewer', permissions: ['flow:read'] };
+    req.user = { userId: '1', email: 'a@b.com', role: 'approver', permissions: ['flow:read'] };
     const middleware = requirePermission('flow:create');
     middleware(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
@@ -49,7 +49,7 @@ describe('requirePermission', () => {
   });
 
   it('rejects if user has none of multiple required permissions', () => {
-    req.user = { userId: '1', email: 'a@b.com', role: 'viewer', permissions: ['flow:read'] };
+    req.user = { userId: '1', email: 'a@b.com', role: 'approver', permissions: ['flow:read'] };
     const middleware = requirePermission('flow:create', 'flow:delete');
     middleware(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
@@ -81,7 +81,7 @@ describe('role permissions', () => {
     expect(rolePermissions.editor).not.toContain('endpoint:write');
   });
 
-  it('viewer can only approve HITL', () => {
+  it('approver can only approve HITL', () => {
     expect(rolePermissions.viewer).toContain('execution:approve');
     expect(rolePermissions.viewer).not.toContain('flow:read');
     expect(rolePermissions.viewer).not.toContain('flow:create');
@@ -125,7 +125,7 @@ describe('resolveRoleFromGroups', () => {
     }
     if (groups.some(g => adminGroups.includes(g))) return 'admin';
     if (groups.some(g => editorGroups.includes(g))) return 'editor';
-    return 'viewer';
+    return 'approver';
   }
 
   const adminGroups = ['core-agents-admin', 'admin'];
@@ -142,13 +142,13 @@ describe('resolveRoleFromGroups', () => {
   });
 
   it('returns viewer for unknown groups', () => {
-    expect(resolveRoleFromGroups({ groups: ['user', 'viewer'] }, adminGroups, editorGroups)).toBe('viewer');
-    expect(resolveRoleFromGroups({ groups: [] }, adminGroups, editorGroups)).toBe('viewer');
+    expect(resolveRoleFromGroups({ groups: ['user', 'approver'] }, adminGroups, editorGroups)).toBe('approver');
+    expect(resolveRoleFromGroups({ groups: [] }, adminGroups, editorGroups)).toBe('approver');
   });
 
   it('returns viewer for no groups', () => {
-    expect(resolveRoleFromGroups({}, adminGroups, editorGroups)).toBe('viewer');
-    expect(resolveRoleFromGroups({ email: 'test@test.com' }, adminGroups, editorGroups)).toBe('viewer');
+    expect(resolveRoleFromGroups({}, adminGroups, editorGroups)).toBe('approver');
+    expect(resolveRoleFromGroups({ email: 'test@test.com' }, adminGroups, editorGroups)).toBe('approver');
   });
 
   it('admin group takes priority over editor', () => {
@@ -169,7 +169,7 @@ describe('resolveRoleFromGroups', () => {
   });
 
   it('returns viewer when admin/editor groups are empty', () => {
-    expect(resolveRoleFromGroups({ groups: ['admin'] }, [], [])).toBe('viewer');
-    expect(resolveRoleFromGroups({ groups: ['editor'] }, [], [])).toBe('viewer');
+    expect(resolveRoleFromGroups({ groups: ['admin'] }, [], [])).toBe('approver');
+    expect(resolveRoleFromGroups({ groups: ['editor'] }, [], [])).toBe('approver');
   });
 });

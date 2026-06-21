@@ -50,6 +50,13 @@
       "when": 1782100000000,
       "tag": "0006_update_role_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782200000000,
+      "tag": "0007_rename_viewer_to_approver",
+      "breakpoints": true
     }
   ]
 }

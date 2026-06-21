@@ -32,7 +32,7 @@ router.post('/roles/seed', requirePermission('admin'), asyncHandler(async (_req,
         'document:write', 'knowledge:write', 'chat:create',
       ],
     },
-    { name: 'viewer', description: 'Can approve Human-in-the-Loop requests', permissions: ['execution:approve'], is_system: true },
+    { name: 'approver', description: 'Can approve Human-in-the-Loop requests', permissions: ['execution:approve'], is_system: true },
   ];
 
   const created: string[] = [];

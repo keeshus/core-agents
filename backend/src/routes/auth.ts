@@ -34,7 +34,7 @@ function resolveRoleFromGroups(claims: Record<string, unknown>): string {
   }
   if (groups.some(g => ADMIN_GROUPS.includes(g))) return 'admin';
   if (groups.some(g => EDITOR_GROUPS.includes(g))) return 'editor';
-  return 'viewer';
+  return 'approver';
 }
 
 // Lazy-init OIDC client (only when SSO is configured)
@@ -140,7 +140,7 @@ router.get('/sso/callback', asyncHandler(async (req, res) => {
 
     if (!user) {
       // Create new user from SSO claims
-      const [viewerRole] = await db.select().from(roles).where(eq(roles.name, 'viewer'));
+      const [viewerRole] = await db.select().from(roles).where(eq(roles.name, 'approver'));
       [user] = await db.insert(users).values({
         email,
         name,
@@ -165,7 +165,7 @@ router.get('/sso/callback', asyncHandler(async (req, res) => {
     }
 
     // Issue our JWT
-    let roleName = 'viewer';
+    let roleName = 'approver';
     let permissions: string[] = [];
     if (user.role_id) {
       const [role] = await db.select().from(roles).where(eq(roles.id, user.role_id));
@@ -231,7 +231,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   const isFirstUser = Number(count) === 0;
 
   // Get role: admin for first user, viewer otherwise
-  const [role] = await db.select().from(roles).where(eq(roles.name, isFirstUser ? 'admin' : 'viewer'));
+  const [role] = await db.select().from(roles).where(eq(roles.name, isFirstUser ? 'admin' : 'approver'));
 
   // Create user
   const [user] = await db.insert(users).values({
@@ -244,7 +244,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   // Generate JWT
   const rolePermissions = role?.permissions || [];
   const token = jwt.sign(
-    { userId: user.id, email: user.email, role: role?.name || 'viewer', permissions: rolePermissions },
+    { userId: user.id, email: user.email, role: role?.name || 'approver', permissions: rolePermissions },
     JWT_SECRET,
     { expiresIn: '7d' },
   );
@@ -259,7 +259,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   await db.update(users).set({ last_login_at: new Date() }).where(eq(users.id, user.id));
 
   res.status(201).json({
-    user: { id: user.id, email: user.email, name: user.name, role: role?.name || 'viewer', permissions: rolePermissions },
+    user: { id: user.id, email: user.email, name: user.name, role: role?.name || 'approver', permissions: rolePermissions },
   });
 }));
 
@@ -284,7 +284,7 @@ router.post('/login', asyncHandler(async (req, res) => {
   }
 
   // Get role
-  let roleName = 'viewer';
+  let roleName = 'approver';
   let permissions: string[] = [];
   if (user.role_id) {
     const [role] = await db.select().from(roles).where(eq(roles.id, user.role_id));
