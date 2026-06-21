@@ -74,7 +74,7 @@ function buildSystemPrompt(pageContext: PageContext | null, tools: AssistantTool
 
 export function AssistantProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => typeof window !== 'undefined' && localStorage.getItem('copilot:open') === 'true');
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -88,7 +88,20 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   // Prefix memory keys with userId so different users never share history
   const memKey = useCallback((pageKey: string) => `${user?.id || 'anon'}:${pageKey}`, [user?.id]);
 
-  const toggle = useCallback(() => setOpen(o => !o), []);
+  // Persist panel open/close state across page navigations
+  const handleSetOpen = useCallback((val: boolean) => {
+    setOpen(val);
+    try { localStorage.setItem('copilot:open', String(val)); } catch {}
+  }, []);
+  const toggle = useCallback(() => handleSetOpen(!open), [open]);
+
+  // Generate welcome message for a page
+  const welcomeMessage = useCallback((description: string): Message => ({
+    id: `welcome_${Date.now()}`,
+    role: 'assistant',
+    content: `👋 Welcome! I'm Co-Pilot, your AI assistant for Core Agents.\n\nYou're currently **${description}**.\n\nI can help you with questions about this page, building flows, managing settings, or writing code. Just ask!`,
+    timestamp: Date.now(),
+  }), []);
 
   // Load default endpoint on mount
   useEffect(() => {
@@ -108,7 +121,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     }
     prevKeyRef.current = pageContext.pageKey;
     const saved = memory.load(memKey(pageContext.pageKey));
-    setMessages(saved);
+    if (saved.length > 0) {
+      setMessages(saved);
+    } else {
+      // Show welcome message on first visit to this page
+      setMessages([welcomeMessage(pageContext.description)]);
+    }
   }, [pageContext?.pageKey]);
 
   // Reload tools when page context or node type changes
@@ -248,7 +266,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
 
   return (
     <AssistantContext.Provider value={{
-      open, setOpen, toggle,
+      open, setOpen: handleSetOpen, toggle,
       messages, streaming, streamingContent, error,
       sendMessage, clearConversation,
       pageContext, setPageContext,
