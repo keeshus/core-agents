@@ -55,7 +55,7 @@ function getPageCapabilities(pageKey: string): string {
     return 'This page shows the visual flow editor canvas. You can add/delete/edit nodes, connect them, and configure their settings. Opening a node shows a config panel with fields specific to that node type (system prompt, condition, code, etc.). The left panel has a node catalog.';
   }
   if (pageKey === 'flows-list') {
-    return 'This page shows a list of all flows with their name, description, and version. You can click a flow to edit it, or use the action buttons to run, chat, debug, view executions, or delete a flow. The "New Flow" button creates a new blank flow, and you can also export/import flows. There is no search/filter bar or grid/list toggle.';
+    return 'This page shows a list of all flows with their name, description, and version. Each flow has action buttons to run (execute once), chat (conversational interface), debug (step-through), view execution history, and delete. The "New Flow" button creates a new blank flow. There is no search/filter, no export/import, no grid/list toggle.';
   }
   if (pageKey.startsWith('executions:')) {
     return 'This page shows execution history for a flow. Each execution shows status, duration, and timestamps. Click one to see step-by-step details with input/output/error for each node. Pending HITL approvals link to the approvals page.';
