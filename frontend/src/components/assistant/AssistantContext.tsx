@@ -275,10 +275,19 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Execute tool calls and loop back to LLM for final response
-      if (toolCalls.length > 0) {
+      // Tool call loop: up to 5 rounds (find_flow → navigate_to etc.)
+      let roundMessages = [...apiMessages];
+      if (assistantContent) {
+        roundMessages.push({ role: 'assistant' as const, content: assistantContent });
+      }
+      let allToolResults: Message[] = [];
+      let finalContent = assistantContent;
+      let currentToolCalls = toolCalls;
+
+      for (let round = 0; round < 5 && currentToolCalls.length > 0; round++) {
+        // Execute current tool calls
         const toolResults: Message[] = [];
-        for (const tc of toolCalls) {
+        for (const tc of currentToolCalls) {
           const tool = activeTools.find(t => t.name === tc.name);
           if (tool) {
             try {
@@ -289,13 +298,10 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             }
           }
         }
+        allToolResults.push(...toolResults);
 
-        // Feed tool results back to LLM for a final text response
-        const followUpMessages = [
-          ...apiMessages,
-          { role: 'assistant' as const, content: assistantContent || '' },
-          ...toolResults.map(t => ({ role: 'user' as const, content: `Tool result (${t.name}): ${t.content}` })),
-        ];
+        // Feed results back to LLM
+        roundMessages.push(...toolResults.map(t => ({ role: 'user' as const, content: `Tool result (${t.name}): ${t.content}` })));
 
         const followUp = await fetch(`${API}/llm/chat`, {
           method: 'POST',
@@ -303,36 +309,53 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           credentials: 'include',
           body: JSON.stringify({
             endpointId: defaultEndpointId,
-            messages: followUpMessages,
+            messages: roundMessages,
             tools: toolDefs,
-            systemPrompt: systemPrompt + '\n\nDo not call tools again. Respond to the user based on the tool results above.',
+            systemPrompt,
           }),
           signal: controller.signal,
         });
 
-        if (followUp.ok) {
-          const fReader = followUp.body!.getReader();
-          let fBuffer = '';
-          let finalContent = '';
-          while (true) {
-            const { done, value } = await fReader.read();
-            if (done) break;
-            fBuffer += new TextDecoder().decode(value, { stream: true });
-            for (const line of fBuffer.split('\n')) {
-              if (!line.startsWith('data: ')) continue;
-              try {
-                const ev = JSON.parse(line.slice(6));
-                if (ev.type === 'token') { finalContent += ev.content; setStreamingContent(finalContent); }
-              } catch {}
-            }
-            fBuffer = '';
+        if (!followUp.ok) break;
+
+        const fReader = followUp.body!.getReader();
+        let fBuffer = '';
+        let responseText = '';
+        let newToolCalls: { id: string; name: string; input: any }[] = [];
+
+        while (true) {
+          const { done, value } = await fReader.read();
+          if (done) break;
+          fBuffer += new TextDecoder().decode(value, { stream: true });
+          const lines = fBuffer.split('\n');
+          fBuffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const ev = JSON.parse(line.slice(6));
+              if (ev.type === 'token') { responseText += ev.content; setStreamingContent(responseText); }
+              if (ev.type === 'tool_call') newToolCalls.push(ev);
+            } catch {}
           }
-          setMessages([...updatedMessages, ...toolResults, { id: crypto.randomUUID(), role: 'assistant', content: finalContent, timestamp: Date.now() }]);
-        } else {
-          // Fallback: just show tool results without LLM commentary
-          setMessages([...updatedMessages, ...toolResults]);
         }
-      } else if (assistantContent) {
+
+        finalContent = responseText;
+        currentToolCalls = newToolCalls;
+
+        if (currentToolCalls.length === 0) {
+          // LLM produced a text response — done
+          break;
+        }
+      }
+
+      if (allToolResults.length > 0 || finalContent) {
+        const finalMessages = [...updatedMessages, ...allToolResults];
+        if (finalContent) {
+          finalMessages.push({ id: crypto.randomUUID(), role: 'assistant', content: finalContent, timestamp: Date.now() });
+        }
+        setMessages(finalMessages);
+      }
+    } else if (assistantContent) {
         const finalMessages = [...updatedMessages, { id: crypto.randomUUID(), role: 'assistant', content: assistantContent, timestamp: Date.now() }];
         setMessages(finalMessages);
       }
