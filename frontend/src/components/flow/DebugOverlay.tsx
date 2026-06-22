@@ -60,6 +60,7 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [finalOutput, setFinalOutput] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hitlPause, setHitlPause] = useState<{ executionId: string; prompt: string; buttons: { label: string; value: string }[]; nodeId: string } | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -79,6 +80,7 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
     setSteps([]);
     setFinalOutput(null);
     setError(null);
+    setHitlPause(null);
     setStatus('running');
 
     const controller = new AbortController();
@@ -152,6 +154,14 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
           } else if (event.type === 'execution.completed') {
             setFinalOutput(d.output);
             setStatus('completed');
+          } else if (event.type === 'execution.paused') {
+            setHitlPause({
+              executionId: event.executionId || '',
+              prompt: d.prompt || 'Waiting for approval',
+              buttons: d.buttons || [{ label: 'Approve', value: 'approved' }, { label: 'Reject', value: 'rejected' }],
+              nodeId: d.nodeId || '',
+            });
+            setStatus('completed');
           } else if (event.type === 'execution.failed') {
             setError(d.error || 'Execution failed');
             setStatus('failed');
@@ -163,6 +173,40 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
       setStatus('failed');
     }
   }, [flowId]);
+
+  const handleHitlApprove = useCallback(async (decision: string) => {
+    if (!hitlPause) return;
+    setStatus('running');
+    setHitlPause(null);
+    try {
+      await fetch(`${API_URL}/executions/${hitlPause.executionId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ decision, hitlNodeId: hitlPause.nodeId }),
+      });
+      run();
+    } catch (err: any) {
+      setError(err.message || 'Approval failed');
+      setStatus('failed');
+    }
+  }, [hitlPause, run]);
+
+  const handleHitlReject = useCallback(async () => {
+    if (!hitlPause) return;
+    setHitlPause(null);
+    try {
+      await fetch(`${API_URL}/executions/${hitlPause.executionId}/reject`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setStatus('failed');
+      setError('Execution rejected by user');
+    } catch (err: any) {
+      setError(err.message || 'Rejection failed');
+      setStatus('failed');
+    }
+  }, [hitlPause]);
 
   const formatTime = (t: string) => new Date(t).toLocaleTimeString();
 
@@ -444,6 +488,33 @@ export function DebugOverlay({ flowId, onClose }: DebugOverlayProps) {
                   </div>
                 );
               })}
+
+              {/* HITL pause — show approval UI inline */}
+              {hitlPause && (
+                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-amber-800 mb-2">🛑 Human-in-the-Loop — Approval Required</h3>
+                  <div className="prose prose-sm max-w-none text-amber-900 mb-4 bg-white rounded border p-3 max-h-48 overflow-y-auto">
+                    {hitlPause.prompt}
+                  </div>
+                  <div className="flex gap-2">
+                    {hitlPause.buttons.map(btn => (
+                      <button
+                        key={btn.value}
+                        onClick={() => handleHitlApprove(btn.value)}
+                        className="px-4 py-2 rounded text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={handleHitlReject}
+                      className="px-4 py-2 rounded text-sm font-medium bg-white text-gray-600 border hover:bg-gray-50 transition-colors"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Final output */}
               {finalOutput && (

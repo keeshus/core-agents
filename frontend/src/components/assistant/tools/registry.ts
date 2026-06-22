@@ -203,9 +203,17 @@ const getFlowJson: AssistantTool = {
   description: 'Get the full flow definition as JSON. Use this to inspect the current flow structure and node configurations.',
   inputSchema: { type: 'object', properties: {} },
   async execute() {
-    const match = typeof window !== 'undefined' ? window.location.pathname.match(/\/flows\/([^/]+)\/edit/) : null;
+    if (typeof window === 'undefined') return 'Not in a browser.';
+    const match = window.location.pathname.match(/\/flows\/([^/]+)\/edit/);
     if (!match) return 'Not on a flow editor page. Open a flow in the editor first.';
-    return apiFetch(`/flows/${match[1]}`);
+    const canvasNodes = (window as any).__flowCanvasNodes;
+    const canvasEdges = (window as any).__flowCanvasEdges;
+    if (!canvasNodes) return apiFetch(`/flows/${match[1]}`); // fallback to API
+
+    const flow = JSON.parse(await apiFetch(`/flows/${match[1]}`));
+    flow.nodes = canvasNodes;
+    flow.edges = canvasEdges;
+    return JSON.stringify(flow, null, 2);
   },
 };
 
@@ -257,11 +265,15 @@ const addNode: AssistantTool = {
     type: 'object',
     properties: {
       type: { type: 'string', enum: ['trigger', 'llm-agent', 'code', 'branch', 'output', 'hitl', 'mcp-tool', 'retriever', 'stop'] },
-      label: { type: 'string', description: 'Optional label for the node' },
     },
     required: ['type'],
   },
-  async execute() { return 'Not available — open a flow in the editor first'; },
+  async execute({ type }) {
+    const addFn = (window as any).__addFlowNode;
+    if (!addFn) return 'Not available — open a flow in the editor first.';
+    addFn(type as string, {});
+    return `Added a "${type}" node to the canvas.`;
+  },
 };
 
 const deleteNode: AssistantTool = {
@@ -305,6 +317,37 @@ const closeNodeConfig: AssistantTool = {
     // Fallback: try Escape key
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     return 'Sent Escape key to close the node config panel.';
+  },
+};
+
+const connectNodes: AssistantTool = {
+  name: 'connect_nodes',
+  description: 'Connect two nodes on the flow canvas by their labels.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      source: { type: 'string', description: 'Label of the source node' },
+      target: { type: 'string', description: 'Label of the target node' },
+      sourceHandle: { type: 'string', description: 'Optional handle id on the source node (e.g. "output-1" for second output)' },
+    },
+    required: ['source', 'target'],
+  },
+  async execute({ source, target, sourceHandle }) {
+    const nodes = document.querySelectorAll('.react-flow__node');
+    if (nodes.length === 0) return 'No nodes found on the canvas. Open a flow in the editor first.';
+    let sourceId: string | null = null;
+    let targetId: string | null = null;
+    for (const node of nodes) {
+      const text = node.textContent?.toLowerCase() || '';
+      if (text.includes((source as string).toLowerCase())) sourceId = node.getAttribute('data-id');
+      if (text.includes((target as string).toLowerCase())) targetId = node.getAttribute('data-id');
+    }
+    if (!sourceId) return `Source node "${source}" not found.`;
+    if (!targetId) return `Target node "${target}" not found.`;
+    const connectFn = (window as any).__connectFlowNodes;
+    if (!connectFn) return 'Connect function not available. Make sure FlowEditor is loaded.';
+    connectFn(sourceId, targetId, sourceHandle || undefined);
+    return `Connected "${source}" → "${target}".`;
   },
 };
 
@@ -590,7 +633,7 @@ const getExecutionDetails: AssistantTool = {
 // ── Tool groups ──────────────────────────────────────────────────────────────────
 
 export const toolGroups: Record<string, AssistantTool[]> = {
-  'flow-editor': [openNode, getFlowJson, updateFlow, addNode, deleteNode, closeNodeConfig, getNodeConfig, updateNodeField, getAvailableNodes, readCode, replaceCode],
+  'flow-editor': [openNode, getFlowJson, updateFlow, addNode, deleteNode, connectNodes, closeNodeConfig, getNodeConfig, updateNodeField, getAvailableNodes, readCode, replaceCode],
   'endpoint-crud': [listEndpoints, createEndpoint, deleteEndpoint],
   'mcp-crud': [listMcpServers, createMcpServer, deleteMcpServer, refreshMcpTools],
   'embedding-crud': [listEmbeddingProviders, createEmbeddingProvider, deleteEmbeddingProvider],

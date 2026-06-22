@@ -22,7 +22,7 @@
 ## ✨ Features
 
 | | |
-|---|---|---|
+|---|---|
 | 🎨 **Visual Flow Editor** | Drag-and-drop canvas with React Flow v12. Connect triggers, LLM agents, tools, conditions, and outputs. |
 | 🤖 **Multi-Provider LLM** | Anthropic, OpenAI, and LiteLLM. Select models per node. JSON output mode for structured data. |
 | 🔀 **Agent Routing** | Branch nodes route execution based on conditions. LLM classifiers determine the path automatically. |

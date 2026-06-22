@@ -35,6 +35,14 @@ export function AssistantPanel() {
 
   if (!open) return null;
 
+  // Auto-resize textarea on input
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+  }, [input]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || streaming) return;
@@ -135,7 +143,7 @@ export function AssistantPanel() {
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
           placeholder="Ask anything..."
           rows={1}
-          className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 resize-none overflow-y-auto focus:outline-none focus:ring-1 focus:ring-gray-400"
           disabled={streaming}
         />
         <button

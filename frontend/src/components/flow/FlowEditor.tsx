@@ -55,6 +55,14 @@ export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange
   const [nodes, setNodes, rawOnNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
 
+  // Expose live canvas state for Co-Pilot tools
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__flowCanvasNodes = nodes;
+      (window as any).__flowCanvasEdges = edges;
+    }
+  }, [nodes, edges]);
+
   // Filter out position/drag changes for child nodes (they snap to grid)
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
@@ -196,6 +204,8 @@ export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange
         centerY = rect.height / 2;
       }
     }
+    const existing = nodes.filter(n => n.type === type);
+    const nextNum = existing.length + 1;
     const newNode: Node = {
       id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       type,
@@ -203,15 +213,18 @@ export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange
         x: centerX + Math.random() * 40,
         y: centerY + Math.random() * 40,
       },
-      data: { label: type, type, config: { ...defaultConfig } },
+      data: { label: `${type}${nextNum}`, type, config: { ...defaultConfig } },
     };
     setNodes((nds) => [...nds, newNode]);
-  }, [setNodes]);
+  }, [setNodes, nodes]);
 
-  // Expose addNode to parent via ref
+  // Expose addNode to parent via ref and globally for Co-Pilot
   useEffect(() => {
     if (addNodeCallbackRef) {
       addNodeCallbackRef.current = addNode;
+    }
+    if (typeof window !== 'undefined') {
+      (window as any).__addFlowNode = addNode;
     }
   }, [addNode, addNodeCallbackRef]);
 
@@ -269,6 +282,19 @@ export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange
       (window as any).__deleteFlowNode = deleteNode;
     }
   }, [deleteNode, deleteNodeCallbackRef]);
+
+  const connectNodes = useCallback(
+    (source: string, target: string, sourceHandle?: string) => {
+      setEdges((eds) => addEdge({ source, target, sourceHandle } as Connection, eds));
+    },
+    [setEdges]
+  );
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__connectFlowNodes = connectNodes;
+    }
+  }, [connectNodes]);
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),

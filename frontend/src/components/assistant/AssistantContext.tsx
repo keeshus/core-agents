@@ -106,6 +106,7 @@ function buildSystemPrompt(pageContext: PageContext | null, tools: AssistantTool
     '- If you need more information, ask the user.',
     '- If asked what you can do, describe your available tools — do not invent features not listed in the Page capabilities section above.',
     '- You cannot access external URLs or APIs beyond the provided tools.',
+    '- Keep using tools until the entire task is fully complete. Never say "let me do X next" — just call the tool and do it immediately. Only respond with plain text when every single requested change has been executed.',
   ].join('\n');
 }
 
@@ -275,17 +276,26 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Tool call loop: up to 5 rounds (find_flow → navigate_to etc.)
+      // Helper to append messages to the visible chat
+      const appendMessages = (msgs: Message[]) => {
+        setMessages(prev => [...prev, ...msgs]);
+      };
+
+      // Tool call loop: up to 5 rounds
       let roundMessages = [...apiMessages];
-      if (assistantContent) {
-        roundMessages.push({ role: 'assistant' as const, content: assistantContent });
-      }
-      let allToolResults: Message[] = [];
-      let finalContent = assistantContent;
       let currentToolCalls = toolCalls;
 
-      for (let round = 0; round < 5 && currentToolCalls.length > 0; round++) {
-        // Execute current tool calls
+      // Commit the initial assistant response if present
+      if (assistantContent) {
+        const initialMsg: Message = { id: crypto.randomUUID(), role: 'assistant', content: assistantContent, timestamp: Date.now() };
+        appendMessages([initialMsg]);
+        roundMessages.push({ role: 'assistant' as const, content: assistantContent });
+        setStreamingContent('');
+      }
+
+      let round = 0;
+      while (currentToolCalls.length > 0) {
+        // Execute tool calls and show results immediately
         const toolResults: Message[] = [];
         for (const tc of currentToolCalls) {
           const tool = activeTools.find(t => t.name === tc.name);
@@ -298,7 +308,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             }
           }
         }
-        allToolResults.push(...toolResults);
+        appendMessages(toolResults);
 
         // Feed results back to LLM
         roundMessages.push(...toolResults.map(t => ({ role: 'user' as const, content: `Tool result (${t.name}): ${t.content}` })));
@@ -339,21 +349,66 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        finalContent = responseText;
+        // Commit the follow-up assistant response
+        if (responseText) {
+          const followUpMsg: Message = { id: crypto.randomUUID(), role: 'assistant', content: responseText, timestamp: Date.now() };
+          appendMessages([followUpMsg]);
+          roundMessages.push({ role: 'assistant' as const, content: responseText });
+          setStreamingContent('');
+        }
+
         currentToolCalls = newToolCalls;
+        round++;
 
-        if (currentToolCalls.length === 0) {
-          // LLM produced a text response — done
-          break;
+        // If the LLM described intent but didn't call tools, push it back
+        if (currentToolCalls.length === 0 && responseText && /let me|i('ll| will| need to| should| can|'m going to)\b|now the|next (i|we)|time to/i.test(responseText)) {
+          roundMessages.push({
+            role: 'user' as const,
+            content: 'You described what you will do next but did not call any tools. Call the actual tools now — do not describe, just execute.',
+          });
+          // Re-fetch within this round
+          const retryRes = await fetch(`${API}/llm/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              endpointId: defaultEndpointId,
+              messages: roundMessages,
+              tools: toolDefs,
+              systemPrompt,
+            }),
+            signal: controller.signal,
+          });
+          if (retryRes.ok) {
+            const rReader = retryRes.body!.getReader();
+            let rBuffer = '', retryText = '';
+            while (true) {
+              const { done, value } = await rReader.read();
+              if (done) break;
+              rBuffer += new TextDecoder().decode(value, { stream: true });
+              for (const line of rBuffer.split('\n').filter(l => l.startsWith('data: '))) {
+                try {
+                  const ev = JSON.parse(line.slice(6));
+                  if (ev.type === 'token') { retryText += ev.content; setStreamingContent(retryText); }
+                  if (ev.type === 'tool_call') currentToolCalls.push(ev);
+                } catch {}
+              }
+              rBuffer = '';
+            }
+            if (retryText) {
+              const retryMsg: Message = { id: crypto.randomUUID(), role: 'assistant', content: retryText, timestamp: Date.now() };
+              appendMessages([retryMsg]);
+              roundMessages.push({ role: 'assistant' as const, content: retryText });
+              setStreamingContent('');
+            }
+          }
         }
-      }
 
-      if (allToolResults.length > 0 || finalContent) {
-        const finalMessages = [...updatedMessages, ...allToolResults];
-        if (finalContent) {
-          finalMessages.push({ id: crypto.randomUUID(), role: 'assistant', content: finalContent, timestamp: Date.now() });
+        // Checkup after 8 rounds: ask the LLM if it's stuck
+        if (round === 8 && currentToolCalls.length > 0) {
+          const checkupMsg = 'You have made 8 tool calls in a row. If you are stuck in a loop, describe the issue to the user and stop. Otherwise, continue with your next tool call.';
+          roundMessages.push({ role: 'user' as const, content: checkupMsg });
         }
-        setMessages(finalMessages);
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') setError(err.message);
