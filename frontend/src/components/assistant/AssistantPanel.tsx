@@ -2,7 +2,18 @@ import { useState, useRef, useEffect } from 'react';
 import { useAssistant } from './AssistantContext';
 import { Send, Loader2, AlertTriangle, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames || []), 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col'],
+  attributes: {
+    ...defaultSchema.attributes,
+    th: ['align', 'scope', 'colspan', 'rowspan'],
+    td: ['align', 'colspan', 'rowspan'],
+    table: ['class'],
+  },
+};
 
 export function AssistantPanel() {
   const {
@@ -33,7 +44,7 @@ export function AssistantPanel() {
   const hasMessages = messages.length > 0 || streamingContent;
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 w-96 max-h-[600px] bg-white rounded-xl shadow-2xl border flex flex-col">
+    <div className="fixed bottom-24 right-6 z-50 w-[480px] max-h-[720px] bg-white rounded-xl shadow-2xl border flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50 rounded-t-xl shrink-0">
         <div className="flex items-center gap-2">
@@ -53,7 +64,7 @@ export function AssistantPanel() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px] max-h-[400px]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[300px] max-h-[520px]">
         {!hasMessages && (
           <div className="text-center text-gray-400 text-xs py-8">
             Ask me anything about building flows, managing settings, or writing code.
@@ -78,7 +89,7 @@ export function AssistantPanel() {
                 m.content
               ) : (
                 <div className="prose prose-sm max-w-none prose-code:bg-gray-200 prose-code:px-1 prose-code:rounded">
-                  <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{m.content}</ReactMarkdown>
+                  <ReactMarkdown rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}>{m.content}</ReactMarkdown>
                 </div>
               )}
             </div>
@@ -90,7 +101,7 @@ export function AssistantPanel() {
           <div className="flex justify-start">
             <div className="max-w-[85%] rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-900">
               <div className="prose prose-sm max-w-none">
-                <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{streamingContent}</ReactMarkdown>
+                <ReactMarkdown rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}>{streamingContent}</ReactMarkdown>
               </div>
             </div>
           </div>
