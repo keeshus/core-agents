@@ -39,8 +39,10 @@ export function topologicalSort(nodes: FlowNode[], edges: FlowEdge[]): Topologic
   const cycles: string[][] = [];
   if (sorted.length < nodes.length) {
     const visited = new Set(sorted.map(n => n.id));
-    const unvisited = nodes.filter(n => !visited.has(n.id)).map(n => n.id);
-    cycles.push(unvisited);
+    const unvisited = nodes.filter(n => !visited.has(n.id));
+    cycles.push(unvisited.map(n => n.id));
+    // Add remaining nodes to sorted order anyway (they're part of feedback loops)
+    sorted.push(...unvisited);
   }
 
   return { sorted, cycles };

@@ -72,7 +72,7 @@ export class FlowExecutor {
     const { sorted, cycles } = topologicalSort(flow.nodes, flow.edges);
 
     if (cycles.length > 0) {
-      throw new Error(`Flow contains cycles: ${JSON.stringify(cycles)}`);
+      console.warn(`Flow contains feedback loops (cycles): ${JSON.stringify(cycles)}`);
     }
 
     const nodeOutputs = new Map<string, unknown>();
