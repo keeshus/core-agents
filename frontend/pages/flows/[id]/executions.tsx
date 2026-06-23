@@ -201,11 +201,11 @@ export default function ExecutionHistoryPage() {
               groups.sort((a, b) => a.iter - b.iter);
               const elements: any[] = [];
               groups.forEach((group, gi) => {
-                if (gi > 0) {
+                if (group.iter > 0) {
                   elements.push(
                     <div key={`sep-${group.iter}`} className="flex items-center gap-2 py-1">
                       <div className="flex-1 border-t border-dashed border-orange-300" />
-                      <span className="text-[10px] font-medium text-orange-500 uppercase tracking-wider">⟳ Loop iteration {gi}</span>
+                      <span className="text-[10px] font-medium text-orange-500 uppercase tracking-wider">⟳ Run iteration {group.iter}</span>
                       <div className="flex-1 border-t border-dashed border-orange-300" />
                     </div>
                   );
@@ -228,7 +228,7 @@ export default function ExecutionHistoryPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900">{label}</span>
-                        {gi > 0 && <span className="text-[9px] px-1 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">⟳ {gi}</span>}
+                        {step.iteration > 0 && <span className="text-[9px] px-1 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">⟳ run {step.iteration}</span>}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className={`text-[10px] px-1 rounded capitalize ${sc.bg} ${sc.color}`}>{sc.label}</span>

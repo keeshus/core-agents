@@ -67,7 +67,7 @@ export class FlowExecutor {
     input: Record<string, unknown>,
     onEvent: EventCallback,
     context: ExecutionContext,
-    options?: { replayFrom?: string; replayOutputs?: Record<string, unknown>; inputOverride?: Record<string, unknown> },
+    options?: { replayFrom?: string; replayOutputs?: Record<string, unknown>; inputOverride?: Record<string, unknown>; initialIteration?: number },
   ): Promise<{ output: Record<string, unknown>; steps: ExecutionStep[] }> {
     const { sorted, cycles } = topologicalSort(flow.nodes, flow.edges);
 
@@ -85,7 +85,8 @@ export class FlowExecutor {
 
     const steps: ExecutionStep[] = [];
 
-    let feedbackIterCount = 0;
+    const currentIteration = options?.initialIteration ?? 0;
+    let feedbackLoopCount = 0;
     const MAX_FEEDBACK_ITERS = 10;
 
     for (let i = 0; i < sorted.length; i++) {
@@ -225,7 +226,7 @@ export class FlowExecutor {
         type: 'step.started',
         executionId: '',
         nodeId: node.id,
-        data: { nodeId: node.id, nodeType: node.data.type, nodeLabel: node.data.label || node.data.type, input: enrichedInput, iteration: feedbackIterCount },
+        data: { nodeId: node.id, nodeType: node.data.type, nodeLabel: node.data.label || node.data.type, input: enrichedInput, iteration: currentIteration },
         timestamp: new Date().toISOString(),
       });
 
@@ -257,7 +258,7 @@ export class FlowExecutor {
           type: 'step.completed',
           executionId: '',
           nodeId: node.id,
-          data: { nodeId: node.id, nodeType: node.data.type, nodeLabel: node.data.label, output: output as Record<string, unknown>, iteration: feedbackIterCount },
+          data: { nodeId: node.id, nodeType: node.data.type, nodeLabel: node.data.label, output: output as Record<string, unknown>, iteration: currentIteration },
           timestamp: new Date().toISOString(),
         });
 
@@ -289,15 +290,15 @@ export class FlowExecutor {
               if (targetIdx >= 0 && targetIdx < i) {
                 if (decision === buttonValue) {
                   // This is a feedback edge — re-execute from target
-                  const isMaxIter = hitlConfig.maxIterations > 0 && (feedbackIterCount + 1) >= hitlConfig.maxIterations;
+                  const isMaxIter = hitlConfig.maxIterations > 0 && (feedbackLoopCount + 1) >= hitlConfig.maxIterations;
                   if (isMaxIter) {
-                    nodeOutputs.set(node.id, { decision: 'max_iterations', feedback: hitlOutput?.feedback || '', _iterationCount: feedbackIterCount + 1 });
-                    nodeOutputs.set(slugify(node.data?.label || node.id), { decision: 'max_iterations', feedback: hitlOutput?.feedback || '', _iterationCount: feedbackIterCount + 1 });
+                    nodeOutputs.set(node.id, { decision: 'max_iterations', feedback: hitlOutput?.feedback || '', _iterationCount: currentIteration });
+                    nodeOutputs.set(slugify(node.data?.label || node.id), { decision: 'max_iterations', feedback: hitlOutput?.feedback || '', _iterationCount: currentIteration });
                     break;
                   }
 
-                  feedbackIterCount++;
-                  if (feedbackIterCount >= MAX_FEEDBACK_ITERS) break;
+                  feedbackLoopCount++;
+                  if (feedbackLoopCount >= MAX_FEEDBACK_ITERS) break;
 
                   for (let r = targetIdx; r < i; r++) {
                     const resetNode = sorted[r];
@@ -311,7 +312,7 @@ export class FlowExecutor {
                   delete flowInput._decision;
                   delete flowInput._feedback;
 
-                  flowInput._iterationCount = feedbackIterCount;
+                  flowInput._iterationCount = currentIteration;
                   flowInput._feedback = prevFeedback;
                   nodeOutputs.set('_lastFeedback', prevFeedback);
 
@@ -337,7 +338,7 @@ export class FlowExecutor {
           type: 'step.failed',
           executionId: '',
           nodeId: node.id,
-          data: { nodeId: node.id, nodeType: node.data.type, nodeLabel: node.data.label, error, iteration: feedbackIterCount },
+          data: { nodeId: node.id, nodeType: node.data.type, nodeLabel: node.data.label, error, iteration: currentIteration },
           timestamp: new Date().toISOString(),
         });
 

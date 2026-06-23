@@ -261,7 +261,7 @@ router.post(
           .update(executions)
           .set({
             status: 'awaiting_approval',
-            output: { ...err.savedOutputs, _hitlButtons: err.buttons, _hitlPrompt: err.prompt, _hitlAllowFeedback: (hitlCfg as any).allowFeedback !== false, _hitlNodeId: err.nodeId, _pausedAt: Date.now() } as any,
+            output: { ...err.savedOutputs, _hitlButtons: err.buttons, _hitlPrompt: err.prompt, _hitlAllowFeedback: (hitlCfg as any).allowFeedback !== false, _hitlNodeId: err.nodeId, _pausedAt: Date.now(), _nextIteration: 1 } as any,
             pending_hitls: JSON.stringify([hitlEntry]) as any,
           })
           .where(eq(executions.id, exec.id));
@@ -405,7 +405,7 @@ router.post('/executions/:executionId/approve', requirePermission('execution:app
       mergedInput,
       persistStep,
       executionContext,
-      { replayFrom: hitlEntry.nodeId, replayOutputs: savedOutputs, inputOverride: mergedInput },
+      { replayFrom: hitlEntry.nodeId, replayOutputs: savedOutputs, inputOverride: mergedInput, initialIteration: (exec.output as any)?._nextIteration ?? 1 },
     );
 
     // Calculate total paused time (if any)
@@ -424,20 +424,21 @@ router.post('/executions/:executionId/approve', requirePermission('execution:app
       })
       .where(eq(executions.id, exec.id));
 
-    res.json({ status: 'completed', executionId: exec.id, output: result.output });
-  } catch (err) {
-    if (err instanceof HitlPauseError) {
-      // Another HITL was hit — add to pending list, set back to awaiting_approval
-      const stillPending = pendingHitls.filter((h: any) => h.nodeId !== hitlEntry.nodeId);
-      const newHitls = [...stillPending, { nodeId: err.nodeId, prompt: err.prompt, buttons: err.buttons, savedOutputs: err.savedOutputs }];
-      const prevPausedAt2 = (exec.output as any)?._pausedAt;
+      res.json({ status: 'completed', executionId: exec.id, output: result.output });
+    } catch (err) {
+      if (err instanceof HitlPauseError) {
+        // Another HITL was hit — add to pending list, set back to awaiting_approval
+        const stillPending = pendingHitls.filter((h: any) => h.nodeId !== hitlEntry.nodeId);
+        const newHitls = [...stillPending, { nodeId: err.nodeId, prompt: err.prompt, buttons: err.buttons, savedOutputs: err.savedOutputs }];
+        const currentIter = (exec.output as any)?._nextIteration ?? 1;
+        const prevPausedAt2 = (exec.output as any)?._pausedAt;
       const prevPausedTotal2 = (exec.output as any)?._pausedTotal || 0;
       const addPause2 = prevPausedAt2 ? (Date.now() - prevPausedAt2) : 0;
       await db
         .update(executions)
         .set({
           status: 'awaiting_approval',
-          output: { ...err.savedOutputs, _hitlButtons: err.buttons, _hitlPrompt: err.prompt, _pausedTotal: prevPausedTotal2 + addPause2, _pausedAt: Date.now() } as any,
+            output: { ...err.savedOutputs, _hitlButtons: err.buttons, _hitlPrompt: err.prompt, _pausedTotal: prevPausedTotal2 + addPause2, _pausedAt: Date.now(), _nextIteration: currentIter + 1 } as any,
           pending_hitls: JSON.stringify(newHitls) as any,
         })
         .where(eq(executions.id, exec.id));
