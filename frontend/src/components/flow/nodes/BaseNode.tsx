@@ -33,7 +33,7 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
       className
     )}>
       {Array.from({ length: inputs }).map((_, i) => (
-        <Handle key={`input-${i}`} type="target" position={Position.Left} id={`input-${i}`} style={{ top: '50%' }} />
+        <Handle key={`input-${i}`} type="target" position={Position.Left} id={`input-${i}`} title={`Input ${i}`} style={{ top: '50%' }} />
       ))}
       <div className="px-3 py-2 border-b bg-gray-50 font-medium text-sm rounded-t-lg flex items-center gap-2">
         <span>{label}</span>
@@ -74,12 +74,13 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
             type="source"
             position={Position.Right}
             id={`output-${i}`}
+            title={lbl || `Output ${i}`}
             style={{ top: `${((i + 1) / (outputLabels.length + 1)) * 100}%` }}
           />
         ))
       ) : (
         Array.from({ length: outputs }).map((_, i) => (
-          <Handle key={`${outputs}-output-${i}`} type="source" position={Position.Right} id={`output-${i}`} style={{ top: '50%' }} />
+          <Handle key={`${outputs}-output-${i}`} type="source" position={Position.Right} id={`output-${i}`} title={`Output ${i}`} style={{ top: '50%' }} />
         ))
       )}
     </div>
