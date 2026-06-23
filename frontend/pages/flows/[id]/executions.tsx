@@ -228,7 +228,7 @@ export default function ExecutionHistoryPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900">{label}</span>
-                        {step.iteration > 0 && <span className="text-[9px] px-1 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">⟳ Run {step.iteration}</span>}
+
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className={`text-[10px] px-1 rounded capitalize ${sc.bg} ${sc.color}`}>{sc.label}</span>
