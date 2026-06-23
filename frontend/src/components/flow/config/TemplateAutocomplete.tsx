@@ -136,10 +136,11 @@ export function TemplateAutocomplete({
     : allSuggestions
   ).filter(s => {
     if (!selectedFields || selectedFields.length === 0) return true; // all pass through
-    // Extract label name from suggestion path (e.g., "input.Trigger.message" → "Trigger")
+    // Slugify both sides so raw labels ("Router") match slugified paths ("router")
+    const slugFields = selectedFields.map(f => slugify(f));
     const label = s.path.split('.')[1];
-    // Show if the label is selected as a whole, or if the specific field path is selected
-    return selectedFields.includes(label) || selectedFields.includes(s.path.replace('input.', ''));
+    const fullPath = slugify(s.path.replace('input.', ''));
+    return slugFields.includes(label) || slugFields.includes(fullPath);
   });
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
