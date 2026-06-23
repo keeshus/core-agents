@@ -89,7 +89,7 @@ function VectorStores() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', url: '', apiKey: '' });
+  const [form, setForm] = useState({ name: '', url: '', apiKey: '', storeType: 'qdrant' });
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
@@ -99,7 +99,7 @@ function VectorStores() {
   };
   useEffect(() => { loadData(); }, []);
 
-  const reset = () => { setForm({ name: '', url: '', apiKey: '' }); setShowForm(false); };
+  const reset = () => { setForm({ name: '', url: '', apiKey: '', storeType: 'qdrant' }); setShowForm(false); };
 
   return (
     <div className="bg-white rounded-lg border p-5">
@@ -109,12 +109,19 @@ function VectorStores() {
       </div>
       {showForm && (
         <form onSubmit={async e => { e.preventDefault(); setSaving(true);
-          await fetch(`${API_URL}/vector-stores`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+          await fetch(`${API_URL}/vector-stores`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, storeType: form.storeType }) });
           setSaving(false); reset(); loadData();
         }} className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <label className="block"><span className="text-xs font-medium">Name</span><input required className="mt-1 block w-full rounded border p-2 text-sm" value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></label>
-            <label className="block"><span className="text-xs font-medium">Qdrant URL</span><input required className="mt-1 block w-full rounded border p-2 text-sm" value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="http://localhost:6333" /></label>
+            <label className="block">
+              <span className="text-xs font-medium">Type</span>
+              <select className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm bg-white" value={form.storeType} onChange={e => setForm({...form, storeType: e.target.value})}>
+                <option value="qdrant">Qdrant</option>
+                <option value="neo4j">Neo4j</option>
+              </select>
+            </label>
+            <label className="block"><span className="text-xs font-medium">URL</span><input required className="mt-1 block w-full rounded border p-2 text-sm" value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="http://localhost:6333" /></label>
             <label className="block"><span className="text-xs font-medium">API Key</span><input type="password" className="mt-1 block w-full rounded border p-2 text-sm" value={form.apiKey} onChange={e => setForm({...form, apiKey: e.target.value})} /></label>
           </div>
           <div className="flex justify-end gap-2">
