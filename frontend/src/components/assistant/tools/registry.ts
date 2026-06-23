@@ -333,6 +333,36 @@ const removeEdge: AssistantTool = {
   },
 };
 
+const saveFlow: AssistantTool = {
+  name: 'save_flow',
+  description: 'Save the current flow (nodes, edges, name, description) to the database.',
+  inputSchema: { type: 'object', properties: {} },
+  async execute() {
+    const canvasNodes = (window as any).__flowCanvasNodes;
+    const canvasEdges = (window as any).__flowCanvasEdges;
+    if (!canvasNodes) return 'No canvas state found. Open a flow in the editor first.';
+    const match = typeof window !== 'undefined' ? window.location.pathname.match(/\/flows\/([^/]+)\/edit/) : null;
+    if (!match) return 'Not on a flow editor page.';
+    const flow = JSON.parse(await apiFetch(`/flows/${match[1]}`));
+    flow.nodes = canvasNodes;
+    flow.edges = canvasEdges;
+    await apiFetch(`/flows/${match[1]}`, { method: 'PUT', body: JSON.stringify(flow) });
+    return 'Flow saved successfully.';
+  },
+};
+
+const runFlow: AssistantTool = {
+  name: 'run_flow',
+  description: 'Run the current flow (debug mode). Opens the debug overlay.',
+  inputSchema: { type: 'object', properties: {} },
+  async execute() {
+    const match = typeof window !== 'undefined' ? window.location.pathname.match(/\/flows\/([^/]+)\/edit/) : null;
+    if (!match) return 'Not on a flow editor page.';
+    window.location.href = `/flows/${match[1]}/edit?debug=1`;
+    return 'Opened flow in debug mode.';
+  },
+};
+
 const closeNodeConfig: AssistantTool = {
   name: 'close_node_config',
   description: 'Close the currently open node configuration panel.',
@@ -663,7 +693,7 @@ const getExecutionDetails: AssistantTool = {
 // ── Tool groups ──────────────────────────────────────────────────────────────────
 
 export const toolGroups: Record<string, AssistantTool[]> = {
-  'flow-editor': [openNode, getFlowJson, updateFlow, addNode, deleteNode, connectNodes, removeEdge, closeNodeConfig, getNodeConfig, updateNodeField, getAvailableNodes, readCode, replaceCode],
+  'flow-editor': [openNode, getFlowJson, updateFlow, saveFlow, runFlow, addNode, deleteNode, connectNodes, removeEdge, closeNodeConfig, getNodeConfig, updateNodeField, getAvailableNodes, readCode, replaceCode],
   'endpoint-crud': [listEndpoints, createEndpoint, deleteEndpoint],
   'mcp-crud': [listMcpServers, createMcpServer, deleteMcpServer, refreshMcpTools],
   'embedding-crud': [listEmbeddingProviders, createEmbeddingProvider, deleteEmbeddingProvider],
