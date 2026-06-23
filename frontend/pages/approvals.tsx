@@ -66,6 +66,8 @@ export default function ApprovalsPage() {
   useEffect(() => {
     if (authLoading) return;
     fetchPending();
+    const interval = setInterval(fetchPending, 5000);
+    return () => clearInterval(interval);
   }, [authLoading, fetchPending]);
 
   const handleAction = async (execId: string, decision: string, hitlNodeId?: string) => {
@@ -136,14 +138,6 @@ export default function ApprovalsPage() {
               </>
             )}
           </div>
-          <button
-            onClick={fetchPending}
-            disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-50"
-          >
-            <Loader2 className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
         </div>
 
         {error && (

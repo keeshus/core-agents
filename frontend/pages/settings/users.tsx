@@ -126,10 +126,7 @@ export default function UsersSettingsPage() {
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
             <Plus className="w-3 h-3" /> Create User
           </button>
-          <button onClick={load} disabled={loading} className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-50">
-            <Loader2 className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+
         </div>
 
         {error && (
