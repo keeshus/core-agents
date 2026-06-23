@@ -12,6 +12,8 @@ export default function FlowsListPage() {
   const [flows, setFlows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'updated_at' | 'created_at'>('updated_at');
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<Record<string, 'running' | 'ok' | 'error' | null>>({});
   const PAGE_SIZE = 20;
@@ -43,8 +45,8 @@ export default function FlowsListPage() {
       setLoading(false);
       return;
     }
-    api.flows.list({ limit: PAGE_SIZE, offset: page * PAGE_SIZE }).then(({ data, total }) => { setFlows(data); setTotal(total); }).catch(() => { setFlows([]); setTotal(0); }).finally(() => setLoading(false));
-  }, [user, authLoading, isReader, page]);
+    api.flows.list({ limit: PAGE_SIZE, offset: page * PAGE_SIZE, search: search || undefined, sort }).then(({ data, total }) => { setFlows(data || []); setTotal(total || 0); }).catch(() => { setFlows([]); setTotal(0); }).finally(() => setLoading(false));
+  }, [user, authLoading, isReader, page, search, sort]);
 
   const handleLogout = async () => {
     await logout();
@@ -150,22 +152,41 @@ export default function FlowsListPage() {
           </div>
         ) : loading ? (
           <p className="text-gray-500 text-sm">Loading...</p>
-        ) : flows.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl border">
-            <p className="text-gray-400 mb-2">No flows yet</p>
-            {can('flow:create') && (
-              <button onClick={handleCreate} className="text-blue-600 hover:text-blue-700 text-sm font-medium">Create your first flow</button>
-            )}
-          </div>
         ) : (
           <div>
-            <div className="space-y-3">
+            <div className="flex items-center gap-3 mb-4">
+              <input
+                type="text"
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(0); }}
+                placeholder="Search flows by name or description..."
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+              />
+              <select
+                value={sort}
+                onChange={e => { setSort(e.target.value as any); setPage(0); }}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-gray-400"
+              >
+                <option value="updated_at">Last updated</option>
+                <option value="created_at">Created</option>
+              </select>
+            </div>
+            {flows.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border">
+                <p className="text-gray-400 mb-2">{search ? 'No flows match your search' : 'No flows yet'}</p>
+                {can('flow:create') && !search && (
+                  <button onClick={handleCreate} className="text-blue-600 hover:text-blue-700 text-sm font-medium">Create your first flow</button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
             {flows.map((flow) => (
               <div key={flow.id} className="bg-white rounded-lg border p-4 flex items-center justify-between hover:shadow-sm transition-shadow">
                 <div>
                   <Link href={`/flows/${flow.id}/edit`} className="font-medium text-gray-900 hover:text-blue-600">{flow.name}</Link>
                   <p className="text-xs text-gray-500 mt-0.5">{flow.description || 'No description'}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">v{flow.version} · {new Date(flow.updated_at).toLocaleDateString()}</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{new Date(flow.updated_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {running[flow.id] === 'running' ? (
@@ -205,15 +226,17 @@ export default function FlowsListPage() {
                 </div>
               </div>
             ))}
-            </div>
-            <div className="flex items-center justify-between mt-4 text-sm">
-              <span className="text-gray-500">{total} flow{total !== 1 ? 's' : ''}</span>
-              <div className="flex items-center gap-2">
-                <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded border text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
-                <span className="text-gray-500">Page {page + 1} of {Math.ceil(total / PAGE_SIZE) || 1}</span>
-                <button disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded border text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
-              </div>
-            </div>
+                </div>
+                <div className="flex items-center justify-between mt-4 text-sm">
+                  <span className="text-gray-500">{total} flow{total !== 1 ? 's' : ''}</span>
+                  <div className="flex items-center gap-2">
+                    <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded border text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
+                    <span className="text-gray-500">Page {page + 1} of {Math.ceil(total / PAGE_SIZE) || 1}</span>
+                    <button disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded border text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

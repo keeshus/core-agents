@@ -60,8 +60,13 @@ export async function* streamSSE(url: string, body: unknown, signal?: AbortSigna
 
 export const api = {
   flows: {
-    list: (params?: { limit?: number; offset?: number }) => {
-      const qs = params ? `?${new URLSearchParams({ limit: String(params.limit || 20), offset: String(params.offset || 0) })}` : '';
+    list: (params?: { limit?: number; offset?: number; search?: string; sort?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.limit) q.set('limit', String(params.limit));
+      if (params?.offset) q.set('offset', String(params.offset));
+      if (params?.search) q.set('search', params.search);
+      if (params?.sort) q.set('sort', params.sort);
+      const qs = q.toString() ? `?${q.toString()}` : '';
       return request<{ data: any[]; total: number }>(`/flows${qs}`);
     },
     get: (id: string) => request<any>(`/flows/${id}`),

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, asc, desc, sql } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { flows, flowVersions, executions, executionSteps, chatMessages, chatSessions, userAssignments } from '../db/schema.js';
 import { requirePermission } from '../middleware/auth.js';
@@ -7,17 +7,22 @@ import { asyncHandler } from '../utils/async-handler.js';
 
 const router = Router();
 
-// GET /api/flows — list all flows, ordered by updatedAt desc
+// GET /api/flows — list all flows
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = parseInt(req.query.offset as string) || 0;
-    const [result, countResult] = await Promise.all([
-      db.select().from(flows).orderBy(desc(flows.updated_at)).limit(limit).offset(offset),
-      db.select({ count: sql<number>`count(*)` }).from(flows),
-    ]);
-    res.json({ data: result, total: Number(countResult[0].count), limit, offset });
+    const search = (req.query.search as string) || '';
+    const sortBy = (req.query.sort as string) === 'created_at' ? flows.created_at : flows.updated_at;
+    const orderDir = (req.query.order as string) === 'asc' ? asc : desc;
+    const whereClause = search
+      ? sql`(${flows.name}::text ILIKE ${'%' + search + '%'} OR ${flows.description}::text ILIKE ${'%' + search + '%'})`
+      : undefined;
+    const countPromise = db.select({ count: sql<number>`count(*)` }).from(flows).where(whereClause);
+    const dataPromise = db.select().from(flows).where(whereClause).orderBy(orderDir(sortBy)).limit(limit).offset(offset);
+    const [result, countResult] = await Promise.all([dataPromise, countPromise]);
+    res.json({ data: result, total: Number(countResult[0].count), limit, offset, search: search || undefined, sort: sortBy });
   }),
 );
 
