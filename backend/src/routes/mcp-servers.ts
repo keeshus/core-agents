@@ -37,7 +37,7 @@ router.post(
   '/',
   requirePermission('mcp:write'),
   asyncHandler(async (req, res) => {
-    const { name, url, tools = [], headers, enabled = true } = req.body;
+    const { name, url, tools = [], enabled = true } = req.body;
 
     if (!name || !url) {
       res.status(400).json({ error: 'name and url are required' });
@@ -50,7 +50,6 @@ router.post(
         name,
         url,
         tools,
-        headers: headers || null,
         enabled,
       })
       .returning();
@@ -65,7 +64,7 @@ router.put(
   requirePermission('mcp:write'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
-    const { name, url, tools, headers, enabled } = req.body;
+    const { name, url, tools, enabled } = req.body;
 
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
@@ -74,7 +73,6 @@ router.put(
     if (name !== undefined) updateData.name = name;
     if (url !== undefined) updateData.url = url;
     if (tools !== undefined) updateData.tools = tools;
-    if (headers !== undefined) updateData.headers = headers;
     if (enabled !== undefined) updateData.enabled = enabled;
 
     const result = await db.update(mcpServers).set(updateData).where(eq(mcpServers.id, id)).returning();
@@ -130,7 +128,6 @@ router.post(
         id: server.id,
         name: server.name,
         url: server.url,
-        headers: server.headers as Record<string, string> | undefined,
         enabled: server.enabled,
       });
 

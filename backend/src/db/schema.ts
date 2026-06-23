@@ -113,7 +113,6 @@ export const mcpServers = pgTable('mcp_servers', {
   name: text('name').notNull(),
   url: text('url').notNull(),
   tools: jsonb('tools').notNull().default('[]'),
-  headers: jsonb('headers'),
   enabled: boolean('enabled').notNull().default(true),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow(),

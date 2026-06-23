@@ -17,14 +17,12 @@ import { api } from '@/lib/api-client';
 interface FormState {
   name: string;
   url: string;
-  headers: string;
   enabled: boolean;
 }
 
 const EMPTY_FORM: FormState = {
   name: '',
   url: '',
-  headers: '',
   enabled: true,
 };
 
@@ -65,11 +63,9 @@ export default function MCPServersPage() {
   };
 
   const handleEdit = (srv: any) => {
-    const hdrs = srv.headers || {};
     setForm({
       name: srv.name,
       url: srv.url,
-      headers: Object.entries(hdrs).map(([k, v]) => `${k}: ${v}`).join('\n'),
       enabled: srv.enabled,
     });
     setEditingId(srv.id);
@@ -108,18 +104,20 @@ export default function MCPServersPage() {
     setError(null);
 
     try {
-      // Parse headers from "Key: Value" lines
-      const headersObj: Record<string, string> = {};
-      for (const line of form.headers.split('\n').map(l => l.trim())) {
-        const colon = line.indexOf(':');
-        if (colon > 0) headersObj[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
-      }
-      const body = { name: form.name, url: form.url, headers: Object.keys(headersObj).length > 0 ? headersObj : null, enabled: form.enabled };
       if (editingId) {
-        const updated = await api.mcpServers.update(editingId, body);
+        const updateData = {
+          name: form.name,
+          url: form.url,
+          enabled: form.enabled,
+        };
+        const updated = await api.mcpServers.update(editingId, updateData);
         setServers((prev) => prev.map((s) => (s.id === editingId ? updated : s)));
       } else {
-        const created = await api.mcpServers.create(body);
+        const created = await api.mcpServers.create({
+          name: form.name,
+          url: form.url,
+          enabled: form.enabled,
+        });
         setServers((prev) => [...prev, created]);
       }
       resetForm();
@@ -198,17 +196,6 @@ export default function MCPServersPage() {
                 value={form.url}
                 onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
                 placeholder="http://localhost:3002"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-medium text-gray-700">Headers <span className="text-gray-400">(one per line, Key: Value)</span></span>
-              <textarea
-                className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm font-mono resize-y min-h-[40px]"
-                rows={2}
-                value={form.headers}
-                onChange={(e) => setForm((f) => ({ ...f, headers: e.target.value }))}
-                placeholder="Authorization: Bearer sk-..."
               />
             </label>
 
