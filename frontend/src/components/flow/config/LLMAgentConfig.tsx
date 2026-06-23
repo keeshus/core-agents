@@ -63,28 +63,30 @@ export function LLMAgentConfig({ config, onChange, suggestions }: LLMAgentConfig
         )}
       </label>
 
-      <label className="block">
-        <span className="text-xs font-medium text-gray-700">Model</span>
-        {selectedEndpoint?.models?.length > 0 ? (
-          <select
-            className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm bg-white"
-            value={config.model}
-            onChange={(e) => onChange({ ...config, model: e.target.value })}
-          >
-            <option value="">Select model...</option>
-            {selectedEndpoint.models.map((m: string) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        ) : (
-          <input
-            className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm"
-            value={config.model}
-            onChange={(e) => onChange({ ...config, model: e.target.value })}
-            placeholder="e.g. claude-sonnet-4-20250514"
-          />
-        )}
-      </label>
+      {selectedEndpoint && (
+        <label className="block">
+          <span className="text-xs font-medium text-gray-700">Model</span>
+          {selectedEndpoint.models?.length > 0 ? (
+            <select
+              className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm bg-white"
+              value={config.model}
+              onChange={(e) => onChange({ ...config, model: e.target.value })}
+            >
+              <option value="">Select model...</option>
+              {selectedEndpoint.models.map((m: string) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className="mt-1 block w-full rounded border border-gray-300 p-2 text-sm"
+              value={config.model}
+              onChange={(e) => onChange({ ...config, model: e.target.value })}
+              placeholder="e.g. claude-sonnet-4-20250514"
+            />
+          )}
+        </label>
+      )}
 
       <label className="block">
         <span className="text-xs font-medium text-gray-700">System Prompt</span>
