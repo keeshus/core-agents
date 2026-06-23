@@ -404,9 +404,9 @@ export function NodeConfigModal({
               <div className="text-xs text-gray-500 bg-gray-50 rounded border p-2">
                 <p className="font-medium text-gray-700 mb-1">Output behavior</p>
                 <ul className="list-disc list-inside space-y-0.5">
-                  <li>No fields selected → all accumulated data returned</li>
-                  <li>One field selected → just the field value returned</li>
-                  <li>Multiple fields selected → JSON object returned</li>
+                  <li>No fields selected → all accumulated data (JSON)</li>
+                  <li>One field selected → just the field value</li>
+                  <li>Multiple fields selected → combined as JSON object</li>
                 </ul>
               </div>
             </div>
