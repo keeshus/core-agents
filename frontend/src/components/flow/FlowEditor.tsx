@@ -52,11 +52,23 @@ interface FlowEditorProps {
   deleteNodeCallbackRef?: React.MutableRefObject<((nodeId: string) => void) | null>;
   setNodeLabelRef?: React.MutableRefObject<((nodeId: string, label: string) => void) | null>;
   onNodeClick?: (nodeId: string, nodeData: any) => void;
+  onNodeDragStart?: (nodeId: string) => void;
 }
 
-export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange, onEdgesChange, addNodeCallbackRef, setNodeDataCallbackRef, deleteNodeCallbackRef, setNodeLabelRef, onNodeClick }: FlowEditorProps) {
+export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange, onEdgesChange, addNodeCallbackRef, setNodeDataCallbackRef, deleteNodeCallbackRef, setNodeLabelRef, onNodeClick, onNodeDragStart }: FlowEditorProps) {
   const [nodes, setNodes, rawOnNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
+  const serializedRef = useRef(JSON.stringify({ nodes: initialNodes, edges: initialEdges }));
+
+  // Sync with parent state (undo/redo) without remounting the component
+  useEffect(() => {
+    const serialized = JSON.stringify({ nodes: initialNodes, edges: initialEdges });
+    if (serialized !== serializedRef.current) {
+      setNodes(initialNodes);
+      setEdges(initialEdges);
+      serializedRef.current = serialized;
+    }
+  }, [initialNodes, initialEdges]);
 
   // Expose live canvas state for Co-Pilot tools
   useEffect(() => {
@@ -364,6 +376,7 @@ export function FlowEditor({ initialNodes = [], initialEdges = [], onNodesChange
           fitView
           deleteKeyCode={['Backspace', 'Delete']}
           onNodeClick={(_event, node) => onNodeClick?.(node.id, node.data)}
+          onNodeDragStart={(_event, node) => onNodeDragStart?.(node.id)}
           onNodeDragStop={(_event, node) => {
             if (node.parentId) {
               // Check if dragged outside parent bounds — if so, detach

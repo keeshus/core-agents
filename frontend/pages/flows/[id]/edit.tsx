@@ -39,7 +39,6 @@ export default function FlowEditPage() {
   const redoStackRef = useRef<Array<{ nodes: any[]; edges: any[] }>>([]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  const [flowVersion, setFlowVersion] = useState(0);
 
   const snapshot = useCallback(() => {
     undoStackRef.current.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) });
@@ -57,7 +56,6 @@ export default function FlowEditPage() {
     setEdges(prev.edges);
     setCanUndo(undoStackRef.current.length > 0);
     setCanRedo(true);
-    setFlowVersion(v => v + 1);
   }, [nodes, edges]);
 
   const handleRedo = useCallback(() => {
@@ -68,7 +66,6 @@ export default function FlowEditPage() {
     setEdges(next.edges);
     setCanUndo(true);
     setCanRedo(redoStackRef.current.length > 0);
-    setFlowVersion(v => v + 1);
   }, [nodes, edges]);
 
   // Keyboard shortcuts
@@ -238,7 +235,6 @@ export default function FlowEditPage() {
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1">
           <FlowEditor
-            key={flowVersion}
             initialNodes={nodes}
             initialEdges={edges}
             onNodesChange={setNodes}
@@ -248,6 +244,7 @@ export default function FlowEditPage() {
             deleteNodeCallbackRef={deleteNodeRef}
             setNodeLabelRef={setNodeLabelRef}
             onNodeClick={handleNodeClick}
+            onNodeDragStart={() => snapshot()}
           />
         </div>
 
