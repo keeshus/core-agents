@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "core-agents-shared": "*",
-    "@anthropic-ai/sdk": "^0.105.0",
+    "@anthropic-ai/sdk": "^0.106.0",
     "openai": "^6.44.0",
     "@modelcontextprotocol/sdk": "^1.15.0",
     "bullmq": "^5.79.1",
