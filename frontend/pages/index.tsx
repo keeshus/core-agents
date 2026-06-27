@@ -233,24 +233,23 @@ export default function FlowsListPage() {
                         <Tooltip content="Failed">
                           <span className="flex items-center gap-1 px-2 py-1 text-xs text-error bg-error-container rounded"><Icon name="cancel" className="text-sm" /> Failed</span>
                         </Tooltip>
-                      ) : (
-                        <Tooltip content="Run flow">
-                          <button onClick={() => handleRun(flow.id)} className="flex items-center gap-1 px-2 py-1 text-xs text-on-surface-variant hover:text-primary hover:bg-secondary-container rounded transition-colors cursor-pointer">
-                            <Icon name="play_arrow" className="text-sm" /> Run
-                          </button>
-                        </Tooltip>
-                      )
+                    ) : (
+                      <Tooltip content="Run flow">
+                        <button onClick={() => handleRun(flow.id)} className="flex items-center gap-1 px-2 py-1 text-xs text-on-surface-variant hover:text-primary hover:bg-secondary-container rounded transition-colors cursor-pointer">
+                          <Icon name="play_arrow" className="text-sm" /> Run
+                        </button>
+                      </Tooltip>
+                    ))}
+                    {can('execution:approve') && !isChat && (
+                      <Tooltip content="Executions">
+                        <Link href={`/flows/${flow.id}/executions`} className="flex items-center gap-1 px-2 py-1 text-xs text-on-surface-variant hover:text-primary hover:bg-secondary-container rounded transition-colors">
+                          <Icon name="history" className="text-sm" /> Run history
+                        </Link>
+                      </Tooltip>
                     )}
                       </>
                     );
                   })()}
-                  {can('execution:approve') && (
-                    <Tooltip content="Executions">
-                      <Link href={`/flows/${flow.id}/executions`} className="flex items-center gap-1 px-2 py-1 text-xs text-on-surface-variant hover:text-primary hover:bg-secondary-container rounded transition-colors">
-                        <Icon name="history" className="text-sm" /> Run history
-                      </Link>
-                    </Tooltip>
-                  )}
                   {can('flow:edit') && (
                     <Tooltip content="Edit flow">
                       <Link href={`/flows/${flow.id}/edit`} className="flex items-center gap-1 px-2 py-1 text-xs text-on-surface-variant hover:text-primary hover:bg-secondary-container rounded transition-colors">

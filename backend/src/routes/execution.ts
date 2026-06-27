@@ -99,23 +99,32 @@ router.post(
     }
 
     // Create execution record ------------------------------------
+    const isDebug = (input as any)?._debug === true;
     // Store a snapshot of the flow definition so HITL replay uses the original flow
     const flowSnapshot = { nodes: flowNodes, edges: flowEdges, version: 0 };
-    const [exec] = await db
-      .insert(executions)
-      .values({
-        flow_id: flowId,
-        status: 'running',
-        input,
-        output: { _flowSnapshot: flowSnapshot } as any,
-        started_at: new Date(),
-      })
-      .returning();
+
+    let execId: string;
+    if (isDebug) {
+      // Debug runs: don't persist to DB, just generate a temp ID for SSE
+      execId = `debug_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    } else {
+      const [exec] = await db
+        .insert(executions)
+        .values({
+          flow_id: flowId,
+          status: 'running',
+          input,
+          output: { _flowSnapshot: flowSnapshot } as any,
+          started_at: new Date(),
+        })
+        .returning();
+      execId = exec.id;
+    }
 
     // Emit started event
     emitSSE({
       type: 'execution.started',
-      executionId: exec.id,
+      executionId: execId,
       data: { flowId, flowName: flowName || 'Debug Run' },
       timestamp: new Date().toISOString(),
     });
