@@ -119,8 +119,8 @@ export default function ApprovalsPage() {
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
           {!isReader && (
-            <Link href="/" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface-variant">
-              <Icon name="arrow_back" className="text-base" /> Back
+            <Link href="/" className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant">
+              <Icon name="arrow_back" className="text-base" /> <span>Back</span>
             </Link>
           )}
           <div className="flex-1">

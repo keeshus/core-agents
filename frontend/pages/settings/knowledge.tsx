@@ -14,7 +14,7 @@ export default function KnowledgePage() {
     <div className="min-h-screen bg-surface-container">
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface-variant"><Icon name="arrow_back" className="text-base" /> Back</Link>
+          <Link href="/settings" className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant"><Icon name="arrow_back" className="text-base" /> <span>Back</span></Link>
           <div><h1 className="text-2xl font-bold text-on-surface">Knowledge Bases</h1><p className="text-sm text-on-surface-variant mt-1">Embedding providers and vector stores for RAG</p></div>
         </div>
         <EmbeddingProviders />

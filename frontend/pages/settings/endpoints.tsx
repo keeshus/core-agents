@@ -160,8 +160,8 @@ export default function EndpointsPage() {
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface-variant">
-            <Icon name="arrow_back" className="text-base" /> Back
+          <Link href="/settings" className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant">
+            <Icon name="arrow_back" className="text-base" /> <span>Back</span>
           </Link>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-on-surface">LLM Endpoints</h1>

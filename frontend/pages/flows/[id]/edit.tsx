@@ -277,7 +277,7 @@ export default function FlowEditPage() {
       {/* Floating top bar — title & description */}
       <div className="pointer-events-none fixed inset-x-0 top-3 flex justify-center z-40">
         <div className="pointer-events-auto flex items-center gap-2 bg-surface/90 backdrop-blur border rounded-lg shadow-sm px-3 py-1.5">
-          <Link href="/" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface-variant shrink-0"><Icon name="arrow_back" className="text-sm" /> Back</Link>
+          <Link href="/" className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant shrink-0"><Icon name="arrow_back" className="text-sm" /> <span>Back</span></Link>
           <TextField label="Flow name" value={flow.name} onChange={(v) => setFlow((prev: any) => ({ ...prev, name: v }))} className="min-w-[80px] max-w-[160px]" />
           <TextField label="Description" value={flow.description || ''} onChange={(v) => setFlow((prev: any) => ({ ...prev, description: v }))} className="min-w-[100px] max-w-[200px] focus:max-w-[400px] transition-all" />
         </div>

@@ -39,8 +39,8 @@ export default function SettingsIndex() {
     <div className="min-h-screen bg-surface-container">
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href={backHref} className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface-variant">
-            <Icon name="arrow_back" className="text-base" /> Back
+          <Link href={backHref} className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant">
+            <Icon name="arrow_back" className="text-base" /> <span>Back</span>
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-on-surface">Settings</h1>

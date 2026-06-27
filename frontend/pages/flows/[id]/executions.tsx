@@ -110,7 +110,7 @@ export default function ExecutionHistoryPage() {
     <div className="min-h-screen bg-surface-container">
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href={backHref} className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface-variant"><Icon name="arrow_back" className="text-base" /> Back</Link>
+          <Link href={backHref} className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant"><Icon name="arrow_back" className="text-base" /> <span>Back</span></Link>
           <div className="flex-1"><h1 className="text-2xl font-bold text-on-surface">Run history</h1></div>
         </div>
         {loading ? <p className="text-on-surface-variant text-sm">Loading...</p> : executions.length === 0 ? (
@@ -195,7 +195,7 @@ export default function ExecutionHistoryPage() {
     <div className="min-h-screen bg-surface-container">
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => { setView('list'); setSelected(null); setSteps([]); }} className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface-variant"><Icon name="arrow_back" className="text-base" /> Back</button>
+          <button onClick={() => { setView('list'); setSelected(null); setSteps([]); }} className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant"><Icon name="arrow_back" className="text-base" /> <span>Back</span></button>
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-on-surface">{isDebug ? 'Debug Trace' : 'Execution Details'}</h1>
