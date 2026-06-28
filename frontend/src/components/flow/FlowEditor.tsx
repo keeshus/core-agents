@@ -336,15 +336,18 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
     (connection: Connection) => {
       // Tool input handles can have multiple connections
       if (connection.targetHandle?.startsWith('tool-input')) return true;
-      // Feedback input handle is dedicated for feedback — always allow
-      if (connection.targetHandle === 'feedback-input') return true;
+      // Feedback input handle: only allow edges from HITL nodes
+      if (connection.targetHandle === 'feedback-input') {
+        const sourceNode = nodes.find(n => n.id === connection.source);
+        return sourceNode?.data?.type === 'hitl';
+      }
       // Check if target already has an incoming connection on this handle
       const existing = edges.find(
         e => e.target === connection.target && e.targetHandle === connection.targetHandle
       );
       return !existing;
     },
-    [edges]
+    [edges, nodes]
   );
 
   return (
