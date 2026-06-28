@@ -205,7 +205,6 @@ export default function ChatPage() {
             value={input}
             onChange={setInput}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
             multiline
             rows={1}
             disabled={streaming}
