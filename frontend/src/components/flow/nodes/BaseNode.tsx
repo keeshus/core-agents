@@ -57,7 +57,7 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
           </Tooltip>
         )}
       </div>
-      <div className={`p-3 text-xs ${expanded ? '' : 'overflow-hidden max-h-[72px]'}`}>
+      <div className={`p-3 text-xs ${expanded ? '' : 'overflow-hidden max-h-[72px]'}`} style={{ overflowX: 'hidden' }}>
         {children}
       </div>
       {/* Tool inputs — MCP/Retriever tools wire in here (LLM Agent) */}
