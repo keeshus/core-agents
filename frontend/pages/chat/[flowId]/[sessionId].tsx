@@ -127,8 +127,8 @@ export default function ChatPage() {
     <div className="h-screen flex flex-col bg-surface">
       {/* Header */}
       <div className="h-12 border-b border-outline-variant flex items-center px-4 shrink-0 bg-surface-container">
-          <Link href={`/chat/${flowId}`} className="text-on-surface-variant hover:text-on-surface mr-3">
-          <Icon name="arrow_back" className="text-base" />
+          <Link href={`/chat/${flowId}`} className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface mr-3">
+            <Icon name="arrow_back" className="text-base" /> <span className="text-xs">Back</span>
         </Link>
         <h1 className="text-sm font-semibold text-on-surface">Chat</h1>
         <span className="text-xs text-on-surface-variant ml-3">Built with Core Agents</span>
