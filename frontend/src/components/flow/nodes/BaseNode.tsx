@@ -22,7 +22,7 @@ interface BaseNodeProps {
 export function BaseNode({ children, label, nodeType, category = 'processing', selected, inputs = 1, outputs = 1, outputLabels, toolInputs = 0, toolOutput = false, className, warnings, feedbackInput }: BaseNodeProps) {
   return (
     <div className={cn(
-      'rounded-lg border-2 bg-surface shadow-m3-1 w-[220px] border-outline',
+      'rounded-lg border-2 bg-surface shadow-m3-1 w-[260px] border-outline',
       selected && 'ring-2 ring-primary shadow-m3-2 border-primary',
       className
     )}>
@@ -37,7 +37,7 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
           <Handle type="target" position={Position.Left} id={`input-${i}`} style={{ top: '50%' }} />
         </Tooltip>
       ))}
-      <div className="px-3 py-2 border-b bg-surface-container font-medium text-sm rounded-t-lg flex items-center gap-2 text-on-surface">
+      <div className="px-3 py-2.5 border-b bg-surface-container font-medium text-sm rounded-t-lg flex items-center gap-2 text-on-surface">
         <span className="truncate flex-1">{label}</span>
         {nodeType && label !== nodeType && (
           <span className="text-[10px] text-on-surface-variant font-normal shrink-0">{nodeType}</span>
@@ -50,7 +50,7 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
           </Tooltip>
         )}
       </div>
-      <div className="p-3 text-xs">
+      <div className="p-4 text-xs">
         {children}
       </div>
       {/* Tool inputs — MCP/Retriever tools wire in here (LLM Agent) */}
