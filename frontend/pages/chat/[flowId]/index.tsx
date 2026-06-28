@@ -37,8 +37,8 @@ export default function ChatSessionList() {
     <div className="min-h-screen bg-surface-container">
       <div className="max-w-2xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/flows" className="text-on-surface-variant hover:text-on-surface-variant">
-            <Icon name="arrow_back" className="text-base" />
+          <Link href="/flows" className="flex items-center gap-1 leading-none text-on-surface-variant hover:text-on-surface-variant">
+            <Icon name="arrow_back" className="text-base" /> <span>Back</span>
           </Link>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-on-surface">Chat Sessions</h1>
@@ -75,9 +75,9 @@ export default function ChatSessionList() {
                 </Link>
                 <button
                   onClick={() => deleteSession(s.id)}
-                  className="p-2 text-on-surface-variant hover:text-error transition-colors shrink-0"
+                  className="flex items-center gap-1 p-2 text-xs text-on-surface-variant hover:text-error transition-colors shrink-0"
                 >
-                  <Icon name="delete" className="text-base" />
+                  <Icon name="delete" className="text-base" /> Delete
                 </button>
               </div>
             ))}
