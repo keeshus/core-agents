@@ -71,6 +71,13 @@
       "when": 1783500000000,
       "tag": "0009_add_step_iteration",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782746431196,
+      "tag": "0010_dazzling_freak",
+      "breakpoints": true
     }
   ]
 }

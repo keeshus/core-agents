@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { eq, and, asc, desc, sql } from 'drizzle-orm';
 import { db } from '../db/connection.js';
-import { flows, flowVersions, executions, executionSteps, chatMessages, chatSessions, userAssignments } from '../db/schema.js';
+import { flows, flowVersions, executions, executionSteps, chatMessages, chatSessions, userAssignments, users } from '../db/schema.js';
 import { requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -19,7 +19,18 @@ router.get(
     const whereClause = search
       ? sql`(${flows.name}::text ILIKE ${'%' + search + '%'} OR ${flows.description}::text ILIKE ${'%' + search + '%'})`
       : undefined;
-    const baseQuery = db.select().from(flows);
+    const baseQuery = db.select({
+      id: flows.id,
+      name: flows.name,
+      description: flows.description,
+      nodes: flows.nodes,
+      edges: flows.edges,
+      version: flows.version,
+      created_by: flows.created_by,
+      created_by_name: users.name,
+      created_at: flows.created_at,
+      updated_at: flows.updated_at,
+    }).from(flows).leftJoin(users, eq(flows.created_by, users.id));
     const countQuery = db.select({ count: sql<number>`count(*)` }).from(flows);
     const dataPromise = (whereClause ? baseQuery.where(whereClause) : baseQuery).orderBy(orderDir(sortBy)).limit(limit).offset(offset);
     const countPromise = whereClause ? countQuery.where(whereClause) : countQuery;
@@ -51,7 +62,18 @@ router.get(
   '/:id',
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
-    const result = await db.select().from(flows).where(eq(flows.id, id)).limit(1);
+    const result = await db.select({
+      id: flows.id,
+      name: flows.name,
+      description: flows.description,
+      nodes: flows.nodes,
+      edges: flows.edges,
+      version: flows.version,
+      created_by: flows.created_by,
+      created_by_name: users.name,
+      created_at: flows.created_at,
+      updated_at: flows.updated_at,
+    }).from(flows).leftJoin(users, eq(flows.created_by, users.id)).where(eq(flows.id, id)).limit(1);
 
     if (result.length === 0) {
       res.status(404).json({ error: 'Flow not found' });
@@ -76,6 +98,7 @@ router.post(
         description,
         nodes,
         edges,
+        created_by: req.user?.userId,
       })
       .returning();
 

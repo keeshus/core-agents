@@ -48,6 +48,7 @@ export const flows = pgTable('flows', {
   nodes: jsonb('nodes').notNull().default('[]'),
   edges: jsonb('edges').notNull().default('[]'),
   version: integer('version').notNull().default(1),
+  created_by: uuid('created_by').references(() => users.id),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow(),
 });
