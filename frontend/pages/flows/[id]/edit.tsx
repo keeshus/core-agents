@@ -36,9 +36,8 @@ export default function FlowEditPage() {
   const [nameAvailable, setNameAvailable] = useState(true);
   useEffect(() => {
     if (!flow?.name?.trim()) { setNameAvailable(false); return; }
-    if (flow.id === 'new') { setNameAvailable(true); return; }
     const timer = setTimeout(() => {
-      api.flows.checkName(flow.name.trim(), flow.id).then(r => setNameAvailable(r.available)).catch(() => {});
+      api.flows.checkName(flow.name.trim(), flow.id === 'new' ? undefined : flow.id).then(r => setNameAvailable(r.available)).catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
   }, [flow?.name, flow?.id]);

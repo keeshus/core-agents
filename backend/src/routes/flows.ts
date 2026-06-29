@@ -91,6 +91,19 @@ router.post(
   asyncHandler(async (req, res) => {
     const { name, description = '', nodes = [], edges = [] } = req.body;
 
+    if (!name || !name.trim()) {
+      res.status(400).json({ error: 'Flow name is required' });
+      return;
+    }
+
+    // Check for duplicate name
+    const existing = await db.select({ id: flows.id }).from(flows)
+      .where(sql`LOWER(${flows.name}) = LOWER(${name.trim()})`).limit(1);
+    if (existing.length > 0) {
+      res.status(409).json({ error: 'A flow with this name already exists' });
+      return;
+    }
+
     const result = await db
       .insert(flows)
       .values({
@@ -122,6 +135,16 @@ router.put(
     if (description !== undefined) updateData.description = description;
     if (nodes !== undefined) updateData.nodes = nodes;
     if (edges !== undefined) updateData.edges = edges;
+
+    // Check for duplicate name if name changed
+    if (name !== undefined && name.trim()) {
+      const existing = await db.select({ id: flows.id }).from(flows)
+        .where(and(sql`LOWER(${flows.name}) = LOWER(${name.trim()})`, sql`${flows.id} != ${id}`)).limit(1);
+      if (existing.length > 0) {
+        res.status(409).json({ error: 'A flow with this name already exists' });
+        return;
+      }
+    }
 
     const result = await db.update(flows).set(updateData).where(eq(flows.id, id)).returning();
 
