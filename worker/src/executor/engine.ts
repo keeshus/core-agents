@@ -930,7 +930,7 @@ export class FlowExecutor {
         const inp = input as Record<string, unknown> | undefined;
         const nodeConfig = (nodeData as any)?.config || {};
         const inputFields: string[] = nodeConfig.inputFields || [];
-        console.log('[output] inputFields:', JSON.stringify(inputFields), 'inp keys:', inp ? Object.keys(inp) : 'undefined', 'inp["trigger"]:', inp?.['trigger'] ? 'present' : 'missing');
+
         // Streaming mode: look for upstream LLM agent content in accumulated input
         if (nodeConfig.streaming && inp && typeof inp === 'object') {
           for (const val of Object.values(inp)) {
@@ -946,18 +946,13 @@ export class FlowExecutor {
           const slugLabel = slugify(rawLabel);
           // Try by slugified label key first
           const byLabel = (inp as Record<string, unknown>)?.[slugLabel] as Record<string, unknown> | undefined;
-          console.log('[output] dot-path check:', { rawLabel, field, slugLabel, hasByLabel: !!byLabel, byLabelKeys: byLabel ? Object.keys(byLabel) : [] });
           if (byLabel && field in byLabel) {
-            console.log('[output] dot-path match:', byLabel[field]);
             return byLabel[field];
           }
           // Fallback: scan all values for an object containing the target field as a string
           if (inp && typeof inp === 'object') {
-            const vals = Object.values(inp);
-            console.log('[output] fallback scanning', vals.length, 'values');
-            for (const val of vals) {
+            for (const val of Object.values(inp)) {
               if (val && typeof val === 'object' && !Array.isArray(val) && typeof (val as any)[field] === 'string') {
-                console.log('[output] fallback found:', (val as any)[field]);
                 return (val as any)[field];
               }
             }
