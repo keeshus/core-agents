@@ -120,31 +120,32 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
   }, [nodes, edges]);
 
   // Resize parallel containers when their children change
-  useEffect(() => {
-    setNodes((nds) => {
-      let changed = false;
-      const updated = nds.map(n => {
-        if (n.type !== 'parallel') return n;
-        const children = nds.filter(c => c.parentId === n.id);
-        const childCount = children.length;
-        if (childCount === 0) {
-          if (n.style?.width !== 340 || n.style?.height !== 260) {
-            changed = true;
-            return { ...n, style: { ...n.style, width: 340, height: 260 }, width: 340, height: 260 };
-          }
-          return n;
-        }
-        const targetW = 340;
-        const targetH = Math.max(260, childCount * 180 + 80);
-        if (Number(n.style?.width || n.width || 340) !== targetW || Number(n.style?.height || n.height || 260) !== targetH) {
+  const resizeParallel = useCallback((nds: Node[]) => {
+    let changed = false;
+    const updated = nds.map(n => {
+      if (n.type !== 'parallel') return n;
+      const children = nds.filter(c => c.parentId === n.id);
+      const childCount = children.length;
+      if (childCount === 0) {
+        if (n.style?.width !== 260 || n.style?.height !== 260) {
           changed = true;
-          return { ...n, style: { ...n.style, width: targetW, height: targetH }, width: targetW, height: targetH };
+          return { ...n, style: { ...n.style, width: 260, height: 260 }, width: 260, height: 260 };
         }
         return n;
-      });
-      return changed ? updated : nds;
+      }
+      const targetH = Math.max(260, childCount * 180 + 80);
+      if (Number(n.style?.height || n.height || 260) !== targetH) {
+        changed = true;
+        return { ...n, style: { ...n.style, width: 260, height: targetH }, width: 260, height: targetH };
+      }
+      return n;
     });
-  }, [nodes]);
+    return changed ? updated : nds;
+  }, []);
+
+  useEffect(() => {
+    setNodes(resizeParallel);
+  }, [nodes, resizeParallel]);
 
   // Helper: re-layout children inside a parallel node (used by drag-stop handler)
   const layoutChildren = useCallback((parentId: string, nds: Node[]) => {
@@ -372,8 +373,9 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
                   setNodes(nds => {
                     const withParent = nds.map(n => n.id === node.id ? { ...n, parentId: p.id, position: { x: 20, y: 50 } } : n);
                     const laidOut = layoutChildren(p.id, withParent);
-                    const pars = laidOut.filter(n => n.type === 'parallel');
-                    const others = laidOut.filter(n => n.type !== 'parallel');
+                    const resized = resizeParallel(laidOut);
+                    const pars = resized.filter(n => n.type === 'parallel');
+                    const others = resized.filter(n => n.type !== 'parallel');
                     return [...pars, ...others];
                   });
                   break;
