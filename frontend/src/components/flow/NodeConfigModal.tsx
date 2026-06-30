@@ -160,7 +160,7 @@ export function NodeConfigModal({
                   {upstreamLabels.map((label) => {
                     const upNode = nodes.find(n => (n.data?.label || n.data?.type || n.id) === label);
                     const allFields = upNode ? getNodeFields(upNode) : [];
-                    const fields = isChatFlow && node.data.type === 'output' ? allFields.filter(f => f.type === 'string') : allFields;
+                    const fields = upNode ? getNodeFields(upNode) : [];
                   const labelSelected = configInputFields.includes(label);
                   return (
                     <div key={label}>

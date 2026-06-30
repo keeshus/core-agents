@@ -12,6 +12,7 @@ import * as Separator from '@radix-ui/react-separator';
 import { useTheme } from '@/hooks/useTheme';
 import Link from 'next/link';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { getNodeFields } from '@/components/flow/config/InputPreview';
 
 export default function FlowEditPage() {
   const router = useRouter();
@@ -50,8 +51,25 @@ export default function FlowEditPage() {
     if (!nameAvailable) return 'Another flow with this name already exists';
     if (isChatFlow) {
       if (!nodes.some(n => n.data?.type === 'output')) return 'Chat flow: requires an Output node';
-      const badOutputs = nodes.filter(n => n.data?.type === 'output' && (!n.data?.config?.inputFields || n.data.config.inputFields.length !== 1));
-      if (badOutputs.length > 0) return 'Chat flow: each Output node must have exactly one field selected';
+      for (const out of nodes) {
+        if (out.data?.type !== 'output') continue;
+        const fields = out.data?.config?.inputFields as string[] | undefined;
+        if (!fields || fields.length !== 1) return 'Chat flow: each Output node must have exactly one field selected';
+        const fp = fields[0];
+        if (fp.includes('.')) {
+          const dot = fp.indexOf('.');
+          const rawLabel = fp.slice(0, dot);
+          const fieldName = fp.slice(dot + 1);
+          const upNode = nodes.find(n => (n.data?.label || n.data?.type || n.id) === rawLabel);
+          if (upNode) {
+            const nodeFields = getNodeFields(upNode);
+            const fieldDef = nodeFields.find(f => f.name === fieldName);
+            if (fieldDef && fieldDef.type !== 'string') return 'Chat flow: output field must be a string type (select e.g. message)';
+          }
+        } else {
+          return 'Chat flow: select a specific field (e.g. Trigger.message) instead of the whole node';
+        }
+      }
     }
     return null;
   }, [flow?.name, nameAvailable, isChatFlow, nodes]);
