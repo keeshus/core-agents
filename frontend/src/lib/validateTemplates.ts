@@ -28,6 +28,9 @@ function getFieldsForNode(node: any): string[] {
   // Try dynamic field lookup first (handles custom schemas)
   const type = node?.data?.type;
   const config = node?.data?.config || {};
+  if (type === 'trigger' && config?.triggerType === 'chat') {
+    return ['message', 'history'];
+  }
   if (type === 'trigger' && config?.triggerType === 'webhook' && config?.inputSchema) {
     try {
       const schema = typeof config.inputSchema === 'string' ? JSON.parse(config.inputSchema) : config.inputSchema;
