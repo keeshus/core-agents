@@ -193,7 +193,17 @@ export function DebugOverlay({ flowId, onClose, nodes: canvasNodes, edges: canva
               return { ...s, children: [...existing.filter(c => c.nodeId !== d.subNodeId), child] };
             }));
           } else if (event.type === 'execution.completed') {
-            setFinalOutput(d.output);
+            // Extract the output node's value from the accumulated result
+            let outputValue = d.output;
+            if (canvasNodes && d.output && typeof d.output === 'object') {
+              for (const n of canvasNodes) {
+                if (n.data?.type === 'output' && d.output[n.id] !== undefined) {
+                  outputValue = d.output[n.id];
+                  break;
+                }
+              }
+            }
+            setFinalOutput(outputValue);
             setStatus('completed');
             // Fallback: merge engine steps + canvas nodes to ensure all nodes appear
             setSteps(prev => {
@@ -233,7 +243,7 @@ export function DebugOverlay({ flowId, onClose, nodes: canvasNodes, edges: canva
                       nodeLabel: n.data?.label || 'Output',
                       status: 'completed',
                       input: {},
-                      output: d.output,
+                      output: outputValue,
                       error: null,
                       startedAt: '',
                       completedAt: null,
@@ -246,7 +256,6 @@ export function DebugOverlay({ flowId, onClose, nodes: canvasNodes, edges: canva
               }
               return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
             });
-            // Fallback: merge engine steps into current steps (avoids duplicates)
             if (d.steps && d.steps.length > 0) {
               setSteps(prev => {
                 const existingIds = new Set(prev.map(s => s.nodeId));
@@ -549,7 +558,7 @@ className="w-full text-sm border border-outline rounded-lg px-3 py-2 font-mono r
                 </h3>
                 {error && <p className="text-sm text-error font-mono mt-2">{error}</p>}
                 {finalOutput && (
-                  <pre className="text-xs bg-surface-container p-3 rounded mt-4 text-left overflow-auto max-h-64">{JSON.stringify(finalOutput, null, 2)}</pre>
+                  <pre className="text-xs bg-surface-container p-3 rounded mt-4 text-left overflow-auto max-h-64">{typeof finalOutput === 'string' ? finalOutput : JSON.stringify(finalOutput, null, 2)}</pre>
                 )}
                 {!error && !finalOutput && <p className="text-sm text-on-surface-variant">No output data was returned.</p>}
               </div>
@@ -625,7 +634,7 @@ className="w-full text-sm border border-outline rounded-lg px-3 py-2 font-mono r
             {finalOutput && (
               <div className="mt-4 bg-success-container border border-success rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-success mb-2">Final Output</h3>
-                <pre className="text-xs whitespace-pre-wrap break-all text-success max-h-48 overflow-y-auto">{JSON.stringify(finalOutput, null, 2)}</pre>
+                <pre className="text-xs whitespace-pre-wrap break-all text-success max-h-48 overflow-y-auto">{typeof finalOutput === 'string' ? finalOutput : JSON.stringify(finalOutput, null, 2)}</pre>
               </div>
             )}
 
