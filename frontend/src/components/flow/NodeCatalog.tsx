@@ -19,9 +19,10 @@ interface NodeCatalogProps {
   onAddNode: (type: string, defaultConfig: Record<string, any>) => void;
   onClose?: () => void;
   disabledTypes?: string[];
+  disabledReasons?: Record<string, string>;
 }
 
-export function NodeCatalog({ onAddNode, onClose, disabledTypes = [] }: NodeCatalogProps) {
+export function NodeCatalog({ onAddNode, onClose, disabledTypes = [], disabledReasons = {} }: NodeCatalogProps) {
   const [catalog, setCatalog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,18 +54,20 @@ export function NodeCatalog({ onAddNode, onClose, disabledTypes = [] }: NodeCata
             <div className="flex flex-wrap gap-1">
               {items.map((entry) => {
                 const iconName = NODE_ICONS[entry.type] || 'extension';
-                return (
-                  <Tooltip content={entry.description}>
-                    <button
-                      key={entry.type}
-                      disabled={disabledTypes.includes(entry.type)}
-                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors text-xs font-medium ${disabledTypes.includes(entry.type) ? 'text-outline-variant cursor-not-allowed' : 'hover:bg-surface-container-high text-on-surface-variant cursor-pointer'}`}
-                      onClick={() => { if (!disabledTypes.includes(entry.type)) onAddNode(entry.type, entry.defaultConfig); }}
-                    >
-                      <Icon name={iconName} className={`text-sm ${disabledTypes.includes(entry.type) ? 'text-outline-variant' : 'text-on-surface-variant'}`} />
-                      {entry.label}
-                    </button>
-                  </Tooltip>
+                  const isDisabled = disabledTypes.includes(entry.type);
+                  const tooltipContent = isDisabled && disabledReasons[entry.type] ? disabledReasons[entry.type] : entry.description;
+                  return (
+                    <Tooltip content={tooltipContent}>
+                      <button
+                        key={entry.type}
+                        disabled={isDisabled}
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors text-xs font-medium ${isDisabled ? 'text-outline-variant cursor-not-allowed' : 'hover:bg-surface-container-high text-on-surface-variant cursor-pointer'}`}
+                        onClick={() => { if (!isDisabled) onAddNode(entry.type, entry.defaultConfig); }}
+                      >
+                        <Icon name={iconName} className={`text-sm ${isDisabled ? 'text-outline-variant' : 'text-on-surface-variant'}`} />
+                        {entry.label}
+                      </button>
+                    </Tooltip>
                 );
               })}
             </div>

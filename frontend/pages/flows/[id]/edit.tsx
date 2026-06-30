@@ -364,7 +364,7 @@ export default function FlowEditPage() {
         <span className="pointer-events-auto mt-1.5 text-[9px] text-primary font-bold tracking-wider uppercase">Add Node</span>
         {showCatalog && (
           <div className="pointer-events-auto fixed left-16 top-1/2 -translate-y-1/2 z-40">
-            <NodeCatalog onAddNode={(type, config) => { handleAddNode(type, config); setShowCatalog(false); }} onClose={() => setShowCatalog(false)} disabledTypes={isChatFlow ? ['hitl'] : []} />
+            <NodeCatalog onAddNode={(type, config) => { handleAddNode(type, config); setShowCatalog(false); }} onClose={() => setShowCatalog(false)} disabledTypes={isChatFlow ? ['hitl'] : []} disabledReasons={{ hitl: 'HITL is not supported in chat-triggered flows' }} />
           </div>
         )}
       </div>
