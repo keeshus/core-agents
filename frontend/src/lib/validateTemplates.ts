@@ -4,46 +4,16 @@
 
 const slugify = (s: string) => s.toLowerCase().replace(/[\s.]+/g, '_');
 
+import { getNodeFields } from '@/components/flow/config/InputPreview';
+
 export interface TemplateError {
   match: string;       // The full {{...}} match
   path: string;        // The path inside (e.g. "input.Summarizer.content")
   message: string;     // Human-readable error
   suggestions: string[];  // Possible correct paths
 }
-
-/** Known node output field structures indexed by node type (fallback) */
-const NODE_OUTPUT_SHAPES: Record<string, string[]> = {
-  trigger: ['message'],
-  'llm-agent': ['content'],
-  'mcp-tool': ['result', 'toolName', 'serverName'],
-  retriever: ['query', 'chunks', 'context', 'count'],
-  branch: ['verdict', 'label'],
-  output: [],
-  parallel: ['merged'],
-  hitl: ['decision', 'feedback', 'reviewedContent'],
-  code: [],
-};
-
 function getFieldsForNode(node: any): string[] {
-  // Try dynamic field lookup first (handles custom schemas)
-  const type = node?.data?.type;
-  const config = node?.data?.config || {};
-  if (type === 'trigger' && config?.triggerType === 'chat') {
-    return ['message', 'history'];
-  }
-  if (type === 'trigger' && config?.triggerType === 'webhook' && config?.inputSchema) {
-    try {
-      const schema = typeof config.inputSchema === 'string' ? JSON.parse(config.inputSchema) : config.inputSchema;
-      if (typeof schema === 'object' && !Array.isArray(schema)) return Object.keys(schema);
-    } catch {}
-  }
-  if ((type === 'llm-agent' || type === 'code') && config?.outputSchema) {
-    try {
-      const schema = typeof config.outputSchema === 'string' ? JSON.parse(config.outputSchema) : config.outputSchema;
-      if (schema?.properties) return Object.keys(schema.properties).concat(NODE_OUTPUT_SHAPES[type] || []);
-    } catch {}
-  }
-  return NODE_OUTPUT_SHAPES[type] || [];
+  return (getNodeFields(node) || []).map((f: any) => f.name);
 }
 
 /** Extract path parts from a full path, supporting bracket indexing */
