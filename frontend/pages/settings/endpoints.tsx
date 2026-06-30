@@ -248,12 +248,12 @@ export default function EndpointsPage() {
                   <div key={i} className={`flex items-center gap-1 p-2 rounded transition-colors ${form.defaultModel === model ? 'bg-secondary-container ring-1 ring-primary' : ''}`}>
                     <span
                       onClick={() => setForm((f) => ({ ...f, defaultModel: model }))}
-                      className="flex items-center gap-1.5 cursor-pointer shrink-0"
+                      className="flex items-center cursor-pointer shrink-0 w-20 justify-center"
                     >
                       {form.defaultModel === model ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-on-primary font-medium whitespace-nowrap">Default</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-on-primary font-medium">Default</span>
                       ) : (
-                        <span className="text-[10px] text-on-surface-variant whitespace-nowrap">Set default</span>
+                        <span className="text-[10px] px-1.5 py-0.5 text-on-surface-variant">Set default</span>
                       )}
                     </span>
                     <TextField
@@ -284,7 +284,7 @@ export default function EndpointsPage() {
                   className="text-[11px] text-primary hover:underline"
                 >+ Add model</button>
               </div>
-              <p className="mt-1 text-[10px] text-on-surface-variant">Click the radio or "Set default" label to mark a model as the default for this endpoint.</p>
+              <p className="mt-1 text-[10px] text-on-surface-variant">Click "Set default" to mark a model as the default for this endpoint.</p>
             </div>
           </div>
 
