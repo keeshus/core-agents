@@ -119,56 +119,26 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
     });
   }, [nodes, edges]);
 
-  // Auto-size parallel nodes based on children + snap children to grid
+  // Resize parallel containers when their children change
   useEffect(() => {
     setNodes((nds) => {
       let changed = false;
       const updated = nds.map(n => {
-        // Make children undraggable and snap them to grid positions
-        if (n.parentId) {
-          const parent = nds.find(p => p.id === n.parentId);
-          if (!parent || parent.type !== 'parallel') return n;
-          const siblings = nds
-            .filter(c => c.parentId === n.parentId)
-            .sort((a, b) => a.id.localeCompare(b.id));
-          const idx = siblings.findIndex(c => c.id === n.id);
-          if (idx < 0) return n;
-          let ty = 50;
-          for (let i = 0; i < idx; i++) {
-            const prev = siblings[i];
-            const h = prev.measured?.height || 100;
-            ty += h + 20;
-          }
-          if (n.position.x !== 20 || Math.abs(n.position.y - ty) > 10) {
-            changed = true;
-            return { ...n, position: { x: 20, y: ty } };
-          }
-          return n;
-        }
-
-        // Auto-size parallel containers
         if (n.type !== 'parallel') return n;
         const children = nds.filter(c => c.parentId === n.id);
-        if (children.length === 0) {
-          if (n.style?.width !== 320 || n.style?.height !== 240) {
-            return { ...n, style: { ...n.style, width: 340, height: 260 } };
+        const childCount = children.length;
+        if (childCount === 0) {
+          if (n.style?.width !== 340 || n.style?.height !== 260) {
+            changed = true;
+            return { ...n, style: { ...n.style, width: 340, height: 260 }, width: 340, height: 260 };
           }
           return n;
         }
-        // Only resize when measured dimensions are available
-        const hasMeasured = children.some(c => c.measured?.height || c.height);
-        if (!hasMeasured) return n;
-        const widestChild = Math.max(...children.map(c => {
-          return Number(c.measured?.width || c.width) || 200;
-        }));
-        const totalHeight = children.reduce((sum, c) => {
-          return sum + (Number(c.measured?.height || c.height) || 130) + 20;
-        }, 30);
-        const newW = Math.max(340, widestChild + 60);
-        const newH = Math.max(240, totalHeight + 60);
-        if (Math.abs(Number(n.style?.width || n.width || 340) - newW) > 5 || Math.abs(Number(n.style?.height || n.height || 240) - newH) > 5) {
+        const targetW = 340;
+        const targetH = Math.max(260, childCount * 180 + 80);
+        if (Number(n.style?.width || n.width || 340) !== targetW || Number(n.style?.height || n.height || 260) !== targetH) {
           changed = true;
-          return { ...n, style: { ...n.style, width: newW, height: newH } };
+          return { ...n, style: { ...n.style, width: targetW, height: targetH }, width: targetW, height: targetH };
         }
         return n;
       });
@@ -402,17 +372,8 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
                   setNodes(nds => {
                     const withParent = nds.map(n => n.id === node.id ? { ...n, parentId: p.id, position: { x: 20, y: 50 } } : n);
                     const laidOut = layoutChildren(p.id, withParent);
-                    // Resize parallel container to fit children
-                    const children = laidOut.filter(c => c.parentId === p.id);
-                    const totalHeight = children.reduce((sum, c) => sum + (Number(c.measured?.height || c.height) || 130) + 20, 30);
-                    const widestChild = Math.max(...children.map(c => Number(c.measured?.width || c.width) || 200), 0);
-                    const newW = Math.max(340, widestChild + 60);
-                    const newH = Math.max(240, totalHeight + 60);
-                    const resized = laidOut.map(n =>
-                      n.id === p.id ? { ...n, style: { ...n.style, width: newW, height: newH } } : n
-                    );
-                    const pars = resized.filter(n => n.type === 'parallel');
-                    const others = resized.filter(n => n.type !== 'parallel');
+                    const pars = laidOut.filter(n => n.type === 'parallel');
+                    const others = laidOut.filter(n => n.type !== 'parallel');
                     return [...pars, ...others];
                   });
                   break;
