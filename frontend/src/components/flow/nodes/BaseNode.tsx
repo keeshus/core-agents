@@ -19,9 +19,10 @@ interface BaseNodeProps {
   className?: string;
   warnings?: string[];
   feedbackInput?: boolean;
+  hideHandles?: boolean;
 }
 
-export function BaseNode({ children, label, nodeType, category = 'processing', selected, inputs = 1, outputs = 1, outputLabels, toolInputs = 0, toolOutput = false, className, warnings, feedbackInput }: BaseNodeProps) {
+export function BaseNode({ children, label, nodeType, category = 'processing', selected, inputs = 1, outputs = 1, outputLabels, toolInputs = 0, toolOutput = false, className, warnings, feedbackInput, hideHandles }: BaseNodeProps) {
   return (
     <div className={cn(
       'rounded-lg border-2 bg-surface shadow-m3-1 w-[220px] border-outline',
@@ -29,12 +30,12 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
       className
     )}>
       {/* Feedback input — positioned above the regular input */}
-      {feedbackInput && (
+      {!hideHandles && feedbackInput && (
         <Tooltip content="Feedback loop input">
           <Handle type="target" position={Position.Left} id="feedback-input" style={{ top: '25%' }} className="!bg-warning !w-3 !h-3 !border-2 !border-surface" />
         </Tooltip>
       )}
-      {Array.from({ length: inputs }).map((_, i) => (
+      {!hideHandles && Array.from({ length: inputs }).map((_, i) => (
         <Tooltip key={`input-${i}`} content={`Input ${i}`}>
           <Handle type="target" position={Position.Left} id={`input-${i}`} style={{ top: '50%' }} />
         </Tooltip>
@@ -56,7 +57,7 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
         {children}
       </div>
       {/* Tool inputs — MCP/Retriever tools wire in here (LLM Agent) */}
-      {Array.from({ length: toolInputs }).map((_, i) => (
+      {!hideHandles && Array.from({ length: toolInputs }).map((_, i) => (
         <Tooltip key={`tool-input-${i}`} content="Connect tools here">
           <Handle
             type="target"
@@ -68,7 +69,7 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
         </Tooltip>
       ))}
       {/* Tool output — MCP/Retriever nodes output to LLM Agent's tools input */}
-      {toolOutput && (
+      {!hideHandles && toolOutput && (
         <Tooltip content="Connect to LLM Agent's tools input">
           <Handle
             key="tool-output"
@@ -79,7 +80,7 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
           />
         </Tooltip>
       )}
-      {outputLabels && outputLabels.length > 0 ? (
+      {!hideHandles && outputLabels && outputLabels.length > 0 ? (
         outputLabels.map((lbl, i) => (
           <Tooltip key={`${outputLabels.length}-output-${i}`} content={lbl || `Output ${i}`}>
             <Handle
@@ -90,13 +91,13 @@ export function BaseNode({ children, label, nodeType, category = 'processing', s
             />
           </Tooltip>
         ))
-      ) : (
+      ) : !hideHandles ? (
         Array.from({ length: outputs }).map((_, i) => (
           <Tooltip key={`${outputs}-output-${i}`} content={`Output ${i}`}>
             <Handle type="source" position={Position.Right} id={`output-${i}`} style={{ top: '50%' }} />
           </Tooltip>
         ))
-      )}
+      ) : null}
     </div>
   );
 }
