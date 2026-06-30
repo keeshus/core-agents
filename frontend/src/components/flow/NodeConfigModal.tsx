@@ -79,24 +79,36 @@ export function NodeConfigModal({
 
   const configInputFields: string[] = node.data.config?.inputFields || [];
 
+  const isChatFlow = nodes.some((n: any) => n.data?.config?.triggerType === 'chat');
+  const isOutputNode = node.data.type === 'output';
+
   // Toggle a single input field
   const toggleField = useCallback(
     (fieldPath: string) => {
       const current: string[] = node.data.config?.inputFields || [];
       if (current.includes(fieldPath)) {
+        // Cannot uncheck when chat+output (must keep exactly one field)
+        if (isChatFlow && isOutputNode) return;
         onConfigChange({ inputFields: current.filter((f) => f !== fieldPath) });
       } else if (!fieldPath.includes('.')) {
-        // Toggling a label: remove per-field entries for this label, just use label
-        onConfigChange({ inputFields: [...current.filter(f => f.split('.')[0] !== fieldPath), fieldPath] });
+        // Toggling a label: for chat+output, replace selection instead of adding
+        if (isChatFlow && isOutputNode) {
+          onConfigChange({ inputFields: [fieldPath] });
+        } else {
+          onConfigChange({ inputFields: [...current.filter(f => f.split('.')[0] !== fieldPath), fieldPath] });
+        }
       } else {
-        // Toggling a specific field
-        const label = fieldPath.split('.')[0];
-        // If label was selected by label key, remove the label key and use per-field
-        const withoutLabel = current.filter(f => f !== label);
-        onConfigChange({ inputFields: [...withoutLabel, fieldPath] });
+        // Toggling a specific field: for chat+output, replace selection
+        if (isChatFlow && isOutputNode) {
+          onConfigChange({ inputFields: [fieldPath] });
+        } else {
+          const label = fieldPath.split('.')[0];
+          const withoutLabel = current.filter(f => f !== label);
+          onConfigChange({ inputFields: [...withoutLabel, fieldPath] });
+        }
       }
     },
-    [node.data.config?.inputFields, onConfigChange],
+    [node.data.config?.inputFields, onConfigChange, isChatFlow, isOutputNode],
   );
 
   // Check if a specific field path is selected
@@ -398,12 +410,13 @@ export function NodeConfigModal({
                   <p className="text-[10px] text-on-surface-variant">Return upstream LLM content directly as plain text for real-time streaming</p>
                 </div>
               </label>
-              {nodes.some((n: any) => (n.data?.config?.triggerType === 'chat')) ? (
+              {isChatFlow ? (
                 <div className="text-xs text-on-surface-variant bg-surface-container rounded border p-2">
                   <p className="font-medium text-on-surface-variant mb-1">Chat output</p>
                   <p className="text-[10px] text-on-surface-variant">
-                    Chat flows must return a plain text response. Use <strong>Streaming</strong> or select <strong>one field</strong>
-                    from the upstream node (above) to return a single string value. Multi-field or no-field selection will be serialized to text.
+                    Chat flows require a single plain text response. Select <strong>exactly one field</strong>
+                    from the upstream node (above) to return as the response. Use <strong>Streaming</strong> for
+                    real-time output. Multi-field or no-field selection is not allowed for chat flows.
                   </p>
                 </div>
               ) : (

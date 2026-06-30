@@ -197,9 +197,17 @@ export default function FlowEditPage() {
 
   const handleSave = useCallback(async () => {
     if (!flow) return;
-    if (isChatFlow && !nodes.some(n => n.data?.type === 'output')) {
-      await chatWarning.confirm();
-      return;
+    if (isChatFlow) {
+      const hasOutput = nodes.some(n => n.data?.type === 'output');
+      if (!hasOutput) {
+        await chatWarning.confirm({ message: 'Chat flows require an Output node to define the response format. Add an Output node before saving.' });
+        return;
+      }
+      const badOutputs = nodes.filter(n => n.data?.type === 'output' && (!n.data?.config?.inputFields || n.data.config.inputFields.length !== 1));
+      if (badOutputs.length > 0) {
+        await chatWarning.confirm({ title: 'Output field required', message: 'Each Output node in a chat flow must have exactly one field selected from the upstream node (above). Open the Output node config and select one field.' });
+        return;
+      }
     }
     setSaving(true);
     try {
