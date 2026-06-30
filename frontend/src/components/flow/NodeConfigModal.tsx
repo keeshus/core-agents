@@ -48,14 +48,26 @@ export function NodeConfigModal({
 }: NodeConfigModalProps) {
   // Compute upstream node labels for the input selection UI
   const upstreamLabels = useMemo(() => {
-    const upstreamIds = getUpstreamNodeIds(node.id, edges);
-    // Include parent parallel's upstream for child nodes inside a parallel
+    // When inside a parallel, use the parallel's selected input fields as upstream
     if ((node as any).parentId) {
-      const parentUpstreamIds = getUpstreamNodeIds((node as any).parentId, edges);
-      for (const id of parentUpstreamIds) {
-        if (!upstreamIds.includes(id)) upstreamIds.push(id);
+      const parent = nodes.find((n) => n.id === (node as any).parentId);
+      const parentFields = (parent?.data as any)?.config?.inputFields as string[] | undefined;
+      if (parentFields && parentFields.length > 0) {
+        const names = new Set<string>();
+        for (const f of parentFields) {
+          const dot = f.indexOf('.');
+          names.add(dot === -1 ? f : f.slice(0, dot));
+        }
+        return Array.from(names);
       }
+      // No fields selected on parent — fall back to all upstream nodes of the parent
+      const parentIds = getUpstreamNodeIds((node as any).parentId, edges);
+      return parentIds.map((id) => {
+        const n = nodes.find((nd) => nd.id === id);
+        return n?.data?.label || n?.data?.type || id;
+      }).filter(Boolean);
     }
+    const upstreamIds = getUpstreamNodeIds(node.id, edges);
     const names = new Set<string>();
     for (const upId of upstreamIds) {
       const upNode = nodes.find((n) => n.id === upId);
