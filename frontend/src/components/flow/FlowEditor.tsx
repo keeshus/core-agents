@@ -351,10 +351,18 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
                 const ph = (parent.style?.height || parent.height || 200) as number;
                 // Node position is relative to parent, so check against (0,0) to (pw,ph)
                 if (node.position.x < -50 || node.position.x > pw + 50 || node.position.y < -50 || node.position.y > ph + 50) {
-                  setNodes(nds => nds.map(n => n.id === node.id
-                    ? { ...n, parentId: undefined, position: { x: parent.position.x + 50, y: parent.position.y + Number(ph) + 40 } }
-                    : n
-                  ));
+                  const parentId = node.parentId;
+                  setNodes(nds => {
+                    const without = nds.map(n => n.id === node.id
+                      ? { ...n, parentId: undefined, position: { x: parent.position.x + 50, y: parent.position.y + Number(ph) + 40 } }
+                      : n
+                    );
+                    const laidOut = layoutChildren(parentId, without);
+                    const resized = resizeParallel(laidOut);
+                    const pars = resized.filter(n => n.type === 'parallel');
+                    const others = resized.filter(n => n.type !== 'parallel');
+                    return [...pars, ...others];
+                  });
                   return;
                 }
               }
