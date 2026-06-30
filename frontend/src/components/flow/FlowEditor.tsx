@@ -126,7 +126,6 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
       if (n.type !== 'parallel') return n;
       const children = nds.filter(c => c.parentId === n.id);
       const childCount = children.length;
-      const targetH = Math.max(280, 120 + childCount * 180);
       if (childCount === 0) {
         if (n.style?.width !== 260 || n.style?.height !== 260) {
           changed = true;
@@ -134,6 +133,7 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
         }
         return n;
       }
+      const targetH = Math.max(280, 140 + childCount * 200);
       if (Number(n.style?.height || n.height || 260) !== targetH) {
         changed = true;
         return { ...n, style: { ...n.style, width: 260, height: targetH }, width: 260, height: targetH };
@@ -156,13 +156,13 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
       if (n.parentId !== parentId) return n;
       const idx = children.findIndex(c => c.id === n.id);
       if (idx < 0) return n;
-      let ty = 50;
+      let ty = 40;
       for (let i = 0; i < idx; i++) {
         const prev = children[i];
-        const h = prev.measured?.height || 100;
-        ty += h + 20;
+        const h = prev.measured?.height || 140;
+        ty += h + 30;
       }
-      if (n.position.x === 20 && n.position.y === ty) return n;
+      if (n.position.x === 20 && Math.abs(n.position.y - ty) <= 5) return n;
       return { ...n, position: { x: 20, y: ty } };
     });
   }, []);

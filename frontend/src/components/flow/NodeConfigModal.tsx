@@ -49,6 +49,13 @@ export function NodeConfigModal({
   // Compute upstream node labels for the input selection UI
   const upstreamLabels = useMemo(() => {
     const upstreamIds = getUpstreamNodeIds(node.id, edges);
+    // Include parent parallel's upstream for child nodes inside a parallel
+    if ((node as any).parentId) {
+      const parentUpstreamIds = getUpstreamNodeIds((node as any).parentId, edges);
+      for (const id of parentUpstreamIds) {
+        if (!upstreamIds.includes(id)) upstreamIds.push(id);
+      }
+    }
     const names = new Set<string>();
     for (const upId of upstreamIds) {
       const upNode = nodes.find((n) => n.id === upId);
@@ -56,7 +63,7 @@ export function NodeConfigModal({
       names.add(upNode.data?.label || upNode.data?.type || upId);
     }
     return Array.from(names);
-  }, [node.id, edges, nodes]);
+  }, [node.id, (node as any).parentId, edges, nodes]);
 
   const configInputFields: string[] = node.data.config?.inputFields || [];
 
