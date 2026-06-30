@@ -291,21 +291,22 @@ export function DebugOverlay({ flowId, onClose, nodes: canvasNodes, edges: canva
                 const orderMap = new Map(topoOrder.map((id, i) => [id, i]));
                 toAdd.sort((a, b) => (orderMap.get(a.nodeId) ?? 999) - (orderMap.get(b.nodeId) ?? 999));
               }
+              // Ensure output nodes appear in steps (fallback for missing SSE events)
               if (canvasNodes) {
                 for (const n of canvasNodes) {
-                  if (existingIds.has(n.id)) continue;
+                  if (n.data?.type !== 'output' || existingIds.has(n.id)) continue;
                   existingIds.add(n.id);
                   const stepInputData = d.output && typeof d.output === 'object'
                     ? Object.fromEntries(Object.entries(d.output).filter(([k]) => k !== n.id && k !== '__input__'))
                     : {};
                   toAdd.push({
                     nodeId: n.id,
-                    nodeType: n.data?.type || 'unknown',
-                    nodeLabel: n.data?.label || n.data?.type || 'Node',
+                    nodeType: 'output',
+                    nodeLabel: n.data?.label || 'Output',
                     status: 'completed',
                     input: stepInputData,
-                    output: d.output?.[n.id],
-                    selectedField: n.data?.type === 'output' ? n.data?.config?.inputFields?.[0] : undefined,
+                    output: n.id === outputNodeId ? outputValue : d.output?.[n.id],
+                    selectedField: n.data?.config?.inputFields?.[0],
                     error: null,
                     startedAt: '',
                     completedAt: null,
