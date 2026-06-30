@@ -160,7 +160,7 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
           return cw;
         }));
         const totalHeight = children.reduce((sum, c) => {
-          return sum + Number(c.measured?.height || c.height || 100) + 20;
+          return sum + Number(c.measured?.height || c.height || 130) + 20;
         }, 30); // 30px initial offset
         const newW = Math.max(340, widestChild + 60);
         const newH = Math.max(240, totalHeight + 60);
@@ -400,8 +400,17 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
                   setNodes(nds => {
                     const withParent = nds.map(n => n.id === node.id ? { ...n, parentId: p.id, position: { x: 20, y: 50 } } : n);
                     const laidOut = layoutChildren(p.id, withParent);
-                    const pars = laidOut.filter(n => n.type === 'parallel');
-                    const others = laidOut.filter(n => n.type !== 'parallel');
+                    // Resize parallel container to fit children
+                    const children = laidOut.filter(c => c.parentId === p.id);
+                    const totalHeight = children.reduce((sum, c) => sum + (Number(c.measured?.height || c.height) || 130) + 20, 30);
+                    const widestChild = Math.max(...children.map(c => Number(c.measured?.width || c.width) || 200), 0);
+                    const newW = Math.max(340, widestChild + 60);
+                    const newH = Math.max(240, totalHeight + 60);
+                    const resized = laidOut.map(n =>
+                      n.id === p.id ? { ...n, style: { ...n.style, width: newW, height: newH } } : n
+                    );
+                    const pars = resized.filter(n => n.type === 'parallel');
+                    const others = resized.filter(n => n.type !== 'parallel');
                     return [...pars, ...others];
                   });
                   break;
