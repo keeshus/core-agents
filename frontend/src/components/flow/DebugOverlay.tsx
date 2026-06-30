@@ -195,6 +195,22 @@ export function DebugOverlay({ flowId, onClose, nodes: canvasNodes, edges: canva
           } else if (event.type === 'execution.completed') {
             setFinalOutput(d.output);
             setStatus('completed');
+            if (d.steps && d.steps.length > 0) {
+              setSteps(d.steps.map((s: any) => ({
+                nodeId: s.nodeId || s.node_id,
+                nodeType: s.nodeType || s.node_type,
+                nodeLabel: s.nodeLabel || s.node_label,
+                status: s.status,
+                input: s.input,
+                output: s.output,
+                error: s.error || null,
+                startedAt: s.startedAt || s.started_at,
+                completedAt: s.completedAt || s.completed_at,
+                tokens: s.tokens || [],
+                iteration: s.iteration ?? 0,
+                children: s.children,
+              })));
+            }
           } else if (event.type === 'execution.paused') {
             setHitlPause({
               executionId: event.executionId || '',

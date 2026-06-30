@@ -255,7 +255,7 @@ router.post(
       emitSSE({
         type: 'execution.completed',
         executionId: execId,
-        data: { output: result.output },
+        data: { output: result.output, steps: result.steps },
         timestamp: new Date().toISOString(),
       });
     } catch (err: unknown) {
