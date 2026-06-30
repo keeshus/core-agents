@@ -244,7 +244,14 @@ export default function EndpointsPage() {
             <div className="col-span-2">
               <span className="text-xs font-medium text-on-surface-variant block mb-1">Models</span>
               <div className="space-y-1.5">
-                {(form.models ? form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '') : []).map((model, i) => (
+                {(() => {
+                  const models = form.models ? form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '') : [];
+                  const sorted = [...models].sort((a, b) => {
+                    if (a === form.defaultModel) return -1;
+                    if (b === form.defaultModel) return 1;
+                    return 0;
+                  });
+                  return sorted.map((model, i) => (
                   <div key={i} className={`flex items-center gap-1 p-2 rounded transition-colors ${form.defaultModel === model ? 'bg-secondary-container ring-1 ring-primary' : ''}`}>
                     <span
                       onClick={() => setForm((f) => ({ ...f, defaultModel: model }))}
@@ -261,7 +268,8 @@ export default function EndpointsPage() {
                       value={model}
                       onChange={(v) => {
                         const list = form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '');
-                        list[i] = v;
+                        const idx = list.findIndex(m => m === model);
+                        if (idx !== -1) list[idx] = v;
                         setForm((f) => ({ ...f, models: list.join(', ') }));
                       }}
                       className="flex-1"
@@ -270,14 +278,16 @@ export default function EndpointsPage() {
                       type="button"
                       onClick={() => {
                         const list = form.models.split(',').map(s => s.trim()).filter((s) => s.length > 0 || s === '');
-                        list.splice(i, 1);
+                        const idx = list.findIndex(m => m === model);
+                        if (idx !== -1) list.splice(idx, 1);
                         setForm((f) => ({ ...f, models: list.join(', ') }));
                       }}
                       className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container rounded transition-colors"
                       aria-label="Remove model"
                     ><Icon name="close" className="text-sm" /></button>
                   </div>
-                ))}
+                ));
+                })()}
                 <button
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, models: f.models ? f.models + ', ' : ' ' }))}
