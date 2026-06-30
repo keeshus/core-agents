@@ -154,7 +154,7 @@ export function NodeConfigModal({
           {upstreamLabels.length > 0 && (
             <div className="mb-4">
               <h4 className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
-                Select Input Nodes
+                {node.data.type === 'output' ? 'Select Output Fields' : 'Select Input Nodes'}
               </h4>
               <div className="bg-surface border border-outline-variant rounded p-2 space-y-1">
                 {upstreamLabels.map((label) => {
