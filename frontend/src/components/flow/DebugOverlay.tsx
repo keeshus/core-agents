@@ -243,7 +243,7 @@ export function DebugOverlay({ flowId, onClose, nodes: canvasNodes, edges: canva
                       nodeType: 'output',
                       nodeLabel: n.data?.label || 'Output',
                       status: 'completed',
-                      input: undefined,
+                      input: { selectedField: n.data?.config?.inputFields?.[0] || '(none)' },
                       output: n.id === outputNodeId ? outputValue : d.output?.[n.id],
                       error: null,
                       startedAt: '',

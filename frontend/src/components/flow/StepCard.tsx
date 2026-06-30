@@ -147,6 +147,13 @@ export function StepCard({ step, expanded, onToggle }: StepCardProps) {
             </div>
           )}
 
+          {step.nodeType === 'output' && step.output !== undefined && step.output !== null && (
+            <div>
+              <h4 className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Output</h4>
+              <pre className="text-xs bg-surface border rounded p-2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto font-mono">{typeof step.output === 'string' ? step.output : JSON.stringify(step.output, null, 2)}</pre>
+            </div>
+          )}
+
           {isLLM && hasTokens && (
             <div>
               <h4 className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">
