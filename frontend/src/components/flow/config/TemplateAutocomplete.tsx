@@ -6,6 +6,13 @@ import { TextField } from '@/components/ui/TextField';
 
 const slugify = (s: string) => s.toLowerCase().replace(/[\s.]+/g, '_');
 
+// Slugify a selectedField entry, preserving the dot between label and field
+function slugifySelectedField(field: string): string {
+  const dot = field.indexOf('.');
+  if (dot === -1) return slugify(field);
+  return slugify(field.slice(0, dot)) + '.' + field.slice(dot + 1);
+}
+
 interface TemplateAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
@@ -80,7 +87,7 @@ export function TemplateAutocomplete({
     const errors = validateTemplates(value, upstreamLabels, nodes);
     // Also check if template vars reference fields that are filtered out by input selection
     if (selectedFields && selectedFields.length > 0) {
-      const slugFields = selectedFields.map(f => slugify(f));
+      const slugFields = selectedFields.map(f => slugifySelectedField(f));
       const regex = /\{\{input\.([^}]+)\}\}/g;
       let m: RegExpExecArray | null;
       while ((m = regex.exec(value)) !== null) {
@@ -153,9 +160,9 @@ export function TemplateAutocomplete({
   ).filter(s => {
     if (!selectedFields || selectedFields.length === 0) return true; // all pass through
     // Slugify both sides so raw labels ("Router") match slugified paths ("router")
-    const slugFields = selectedFields.map(f => slugify(f));
+    const slugFields = selectedFields.map(f => slugifySelectedField(f));
     const label = s.path.split('.')[1];
-    const fullPath = slugify(s.path.replace('input.', ''));
+    const fullPath = s.path.replace('input.', '');
     return slugFields.includes(label) || slugFields.includes(fullPath);
   });
 

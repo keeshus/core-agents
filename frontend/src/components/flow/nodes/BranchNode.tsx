@@ -14,7 +14,7 @@ export function BranchNode(props: NodeProps) {
       </div>
       <div className="mt-2 pt-2 border-t border-outline-variant">
         <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-secondary-container text-on-secondary-container">{'{ verdict, label }'}</span>
-        <span className="text-[9px] text-on-surface-variant ml-1">→ true/false path</span>
+        <span className="text-[9px] text-on-surface-variant ml-1">→ {outputLabels.map((l: string) => l || '?').join(', ') || 'no labels'}</span>
       </div>
     </BaseNode>
   );
