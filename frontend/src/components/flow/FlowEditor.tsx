@@ -7,6 +7,7 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useUpdateNodeInternals,
   addEdge,
   type Connection,
   type OnConnect,
@@ -66,17 +67,23 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
   const [nodes, setNodes, rawOnNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
   const { screenToFlowPosition } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const serializedRef = useRef(JSON.stringify({ nodes: initialNodes, edges: initialEdges }));
 
   // Sync with parent state (undo/redo) without remounting the component
   useEffect(() => {
     const serialized = JSON.stringify({ nodes: initialNodes, edges: initialEdges });
     if (serialized !== serializedRef.current) {
+      serializedRef.current = serialized;
       setNodes(initialNodes);
       setEdges(initialEdges);
-      serializedRef.current = serialized;
+      // Force handle re-registration for nodes with dynamic handle counts (branch)
+      const branchIds = initialNodes.filter(n => n.type === 'branch' && n.data?.config?.outputLabels?.length > 0).map(n => n.id);
+      if (branchIds.length > 0) {
+        requestAnimationFrame(() => { for (const id of branchIds) updateNodeInternals(id); });
+      }
     }
-  }, [initialNodes, initialEdges]);
+  }, [initialNodes, initialEdges, updateNodeInternals]);
 
   // Expose live canvas state for Co-Pilot tools
   useEffect(() => {
@@ -221,7 +228,8 @@ function FlowEditorInner({ initialNodes = [], initialEdges = [], onNodesChange, 
         ? { ...n, data: { ...n.data, config: { ...n.data.config, ...config } } }
         : n
     ));
-  }, [setNodes]);
+    requestAnimationFrame(() => updateNodeInternals(nodeId));
+  }, [setNodes, updateNodeInternals]);
 
   useEffect(() => {
     if (setNodeDataCallbackRef) {
