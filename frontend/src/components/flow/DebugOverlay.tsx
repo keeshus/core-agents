@@ -238,13 +238,18 @@ export function DebugOverlay({ flowId, onClose, nodes: canvasNodes, edges: canva
                 for (const n of canvasNodes) {
                   if (n.data?.type === 'output' && !existingIds.has(n.id)) {
                     existingIds.add(n.id);
+                    // Build input from accumulated result (all upstream outputs)
+                    const stepInputData = d.output && typeof d.output === 'object'
+                      ? Object.fromEntries(Object.entries(d.output).filter(([k]) => k !== n.id && k !== '__input__'))
+                      : {};
                     toAdd.push({
                       nodeId: n.id,
                       nodeType: 'output',
                       nodeLabel: n.data?.label || 'Output',
                       status: 'completed',
-                      input: { selectedField: n.data?.config?.inputFields?.[0] || '(none)' },
+                      input: stepInputData,
                       output: n.id === outputNodeId ? outputValue : d.output?.[n.id],
+                      selectedField: n.data?.config?.inputFields?.[0],
                       error: null,
                       startedAt: '',
                       completedAt: null,

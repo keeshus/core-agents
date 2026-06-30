@@ -37,6 +37,7 @@ interface StepData {
   completedAt?: string | null;
   tokens?: string[];
   children?: Array<{ nodeId: string; type: string; output?: any; error?: string; status: string }>;
+  selectedField?: string;
 }
 
 interface StepCardProps {
@@ -51,7 +52,7 @@ export function StepCard({ step, expanded, onToggle }: StepCardProps) {
   const hasTokens = step.tokens && step.tokens.length > 0;
   const stepLabel = step.nodeLabel || step.input?._nodeLabel || NODE_LABELS[step.nodeType] || step.nodeType;
   const iconName = NODE_ICONS[step.nodeType] || 'schedule';
-  const hasExpandable = step.input || step.output || hasTokens || hasSystemPrompt || step.error;
+  const hasExpandable = step.input || step.output || hasTokens || hasSystemPrompt || step.error || step.selectedField;
 
   const fmtTime = (t: string) => new Date(t).toLocaleTimeString('nl-NL');
   const dur = (s: string | null | undefined, e: string | null | undefined) => {
@@ -147,9 +148,14 @@ export function StepCard({ step, expanded, onToggle }: StepCardProps) {
             </div>
           )}
 
+          {step.nodeType === 'output' && step.selectedField && (
+            <div className="text-xs text-on-surface-variant mb-2">
+              Selected field: <code className="font-mono bg-surface-container px-1 rounded">{step.selectedField}</code>
+            </div>
+          )}
           {step.nodeType === 'output' && step.output !== undefined && step.output !== null && (
             <div>
-              <h4 className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Output</h4>
+              <h4 className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Returned value</h4>
               <pre className="text-xs bg-surface border rounded p-2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto font-mono">{typeof step.output === 'string' ? step.output : JSON.stringify(step.output, null, 2)}</pre>
             </div>
           )}
