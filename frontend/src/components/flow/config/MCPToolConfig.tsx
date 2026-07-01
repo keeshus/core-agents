@@ -27,7 +27,6 @@ export function MCPToolConfig({ config, onChange }: MCPToolConfigProps) {
 
   const toolNames: string[] = config.toolNames || [];
   const tools = selectedServer?.tools || [];
-  const allSelected = tools.length > 0 && toolNames.length === tools.length;
   const noneSelected = toolNames.length === 0;
 
   const setToolNames = useCallback((names: string[]) => {
@@ -41,10 +40,6 @@ export function MCPToolConfig({ config, onChange }: MCPToolConfigProps) {
       setToolNames([...toolNames, name]);
     }
   }, [toolNames, setToolNames]);
-
-  const selectAll = useCallback(() => {
-    setToolNames(tools.map((t: any) => t.name));
-  }, [tools, setToolNames]);
 
   const selectNone = useCallback(() => {
     setToolNames([]);
@@ -67,17 +62,10 @@ export function MCPToolConfig({ config, onChange }: MCPToolConfigProps) {
 
       {selectedServer && tools.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
-              Tools
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={selectAll}
-                disabled={allSelected}
-                className="text-[10px] text-primary hover:underline disabled:opacity-30 disabled:cursor-not-allowed"
-              >Select all</button>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
+                Tools
+              </span>
               <button
                 type="button"
                 onClick={selectNone}
@@ -85,7 +73,6 @@ export function MCPToolConfig({ config, onChange }: MCPToolConfigProps) {
                 className="text-[10px] text-primary hover:underline disabled:opacity-30 disabled:cursor-not-allowed"
               >Select none</button>
             </div>
-          </div>
           <div className="bg-surface border border-outline-variant rounded p-2 space-y-0.5 max-h-48 overflow-y-auto">
             {tools.map((t: any) => (
               <label key={t.name} className="flex items-center gap-2 cursor-pointer hover:bg-surface-container rounded px-1 py-0.5">

@@ -156,6 +156,14 @@ export function NodeConfigModal({
               <h4 className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
                 {node.data.type === 'output' ? 'Select Output Fields' : 'Select Input Nodes'}
               </h4>
+              <div className="flex items-center justify-end mb-1">
+                <button
+                  type="button"
+                  onClick={() => onConfigChange({ inputFields: [] })}
+                  disabled={configInputFields.length === 0}
+                  className="text-[10px] text-primary hover:underline disabled:opacity-30 disabled:cursor-not-allowed"
+                >Select none</button>
+              </div>
               <div className="bg-surface border border-outline-variant rounded p-2 space-y-1">
                   {upstreamLabels.map((label) => {
                     const upNode = nodes.find(n => (n.data?.label || n.data?.type || n.id) === label);
