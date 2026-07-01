@@ -38,6 +38,23 @@ function makeFlow(nodes: FlowNode[], edges: FlowEdge[]): FlowDefinition {
   };
 }
 
+function makeSubflowDef(id: string, triggerConfig: Record<string, unknown> = {}, outputConfig: Record<string, unknown> = {}): FlowDefinition {
+  const nodes: FlowNode[] = [
+    makeNode('sf-trigger', 'trigger', { config: { triggerType: 'subflow', ...triggerConfig } }),
+    makeNode('sf-output', 'output', { config: { inputFields: [], ...outputConfig } }),
+  ];
+  return {
+    id,
+    name: `Subflow ${id}`,
+    description: '',
+    nodes,
+    edges: [makeEdge('e1', 'sf-trigger', 'sf-output')],
+    version: 1,
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
 describe('compileFlow — subflow validation', () => {
   let executor: FlowExecutor;
   let onEvent: any;
@@ -48,13 +65,7 @@ describe('compileFlow — subflow validation', () => {
     onEvent = vi.fn();
     context = {
       getEndpoint: vi.fn().mockResolvedValue({ providerType: 'anthropic' as const, apiKey: 'test-key', baseUrl: null }),
-      getFlow: vi.fn().mockResolvedValue({
-        id: 'subflow-1',
-        name: 'Test Subflow',
-        nodes: [makeNode('trigger', 'trigger', { config: { triggerType: 'subflow', inputSchema: '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}' } })],
-        edges: [],
-        version: 1,
-      } as any),
+      getFlow: vi.fn().mockResolvedValue(makeSubflowDef('subflow-1', { inputSchema: '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}' })),
     };
   });
 
@@ -109,13 +120,7 @@ describe('SubFlowExecutor — recursive execution', () => {
   beforeEach(() => {
     executor = new FlowExecutor();
     onEvent = vi.fn();
-    subflowDef = makeFlow(
-      [
-        makeNode('sf-trigger', 'trigger', { config: { triggerType: 'subflow' } }),
-        makeNode('sf-code', 'code', { config: { code: 'return { doubled: (input.query || "") + (input.query || "") };' } }),
-      ],
-      [makeEdge('e1', 'sf-trigger', 'sf-code')],
-    );
+    subflowDef = makeSubflowDef('test-flow', {}, { inputFields: ['sf-trigger.message'] });
     context = {
       getEndpoint: vi.fn().mockResolvedValue({ providerType: 'anthropic' as const, apiKey: 'test-key', baseUrl: null }),
       getFlow: vi.fn().mockResolvedValue(subflowDef),
@@ -149,8 +154,11 @@ describe('SubFlowExecutor — recursive execution', () => {
   });
 
   it('propagates HitlPauseError from within subflow to parent', async () => {
-    const subflowWithHitl = makeFlow(
-      [
+    const subflowWithHitl: FlowDefinition = {
+      id: 'subflow-hitl',
+      name: 'Subflow HITL',
+      description: '',
+      nodes: [
         makeNode('sf-trigger', 'trigger', { config: { triggerType: 'subflow' } }),
         makeNode('sf-hitl', 'hitl', {
           config: {
@@ -160,9 +168,13 @@ describe('SubFlowExecutor — recursive execution', () => {
             buttons: [{ label: 'Approve', value: 'approved' }],
           },
         }),
+        makeNode('sf-output', 'output', { config: { inputFields: [] } }),
       ],
-      [makeEdge('e1', 'sf-trigger', 'sf-hitl')],
-    );
+      edges: [makeEdge('e1', 'sf-trigger', 'sf-hitl'), makeEdge('e2', 'sf-hitl', 'sf-output')],
+      version: 1,
+      createdAt: '',
+      updatedAt: '',
+    };
     context.getFlow = vi.fn().mockResolvedValue(subflowWithHitl);
 
     const flow = makeFlow(
@@ -182,24 +194,26 @@ describe('SubFlowExecutor — recursive execution', () => {
   });
 
   it('increments currentDepth when nesting subflows', async () => {
-    const leafSubflow = makeFlow(
-      [makeNode('leaf-trigger', 'trigger'), makeNode('leaf-code', 'code', { config: { code: 'return { leaf: true };' } })],
-      [makeEdge('e1', 'leaf-trigger', 'leaf-code')],
-    );
-
-    const midLevelSubflow = makeFlow(
-      [
+    const leafSubflow = makeSubflowDef('leaf-subflow');
+    const midLevelSubflow: FlowDefinition = {
+      id: 'mid-level',
+      name: 'Mid Level',
+      description: '',
+      nodes: [
         makeNode('mid-trigger', 'trigger', { config: { triggerType: 'subflow' } }),
         makeNode('mid-sub', 'subflow', {
           config: { subflowId: 'leaf-subflow', inputMapping: {} },
         }),
-        makeNode('mid-out', 'code', { config: { code: 'return { done: true };' } }),
+        makeNode('mid-output', 'output', { config: { inputFields: [] } }),
       ],
-      [
+      edges: [
         makeEdge('e1', 'mid-trigger', 'mid-sub'),
-        makeEdge('e2', 'mid-sub', 'mid-out'),
+        makeEdge('e2', 'mid-sub', 'mid-output'),
       ],
-    );
+      version: 1,
+      createdAt: '',
+      updatedAt: '',
+    };
 
     const subCalls: any[] = [];
     context.getFlow = vi.fn().mockImplementation(async (id: string) => {
@@ -237,6 +251,59 @@ describe('SubFlowExecutor — recursive execution', () => {
   });
 });
 
+describe('compileFlow — subflow requires output node', () => {
+  let executor: FlowExecutor;
+  let onEvent: any;
+  let context: ExecutionContext;
+
+  beforeEach(() => {
+    executor = new FlowExecutor();
+    onEvent = vi.fn();
+    context = {
+      getEndpoint: vi.fn().mockResolvedValue({ providerType: 'anthropic' as const, apiKey: 'test-key', baseUrl: null }),
+    };
+  });
+
+  it('fails when a subflow flow has no output node', async () => {
+    const flow = makeFlow(
+      [
+        makeNode('trigger', 'trigger', { config: { triggerType: 'subflow' } }),
+        makeNode('code', 'code', { config: { code: 'return input;' } }),
+      ],
+      [makeEdge('e1', 'trigger', 'code')],
+    );
+
+    await expect(executor.execute(flow, {}, onEvent, context))
+      .rejects.toThrow(/requires an Output node/);
+  });
+
+  it('passes when a subflow flow has an output node', async () => {
+    const flow = makeFlow(
+      [
+        makeNode('trigger', 'trigger', { config: { triggerType: 'subflow' } }),
+        makeNode('output', 'output', { config: { inputFields: [] } }),
+      ],
+      [makeEdge('e1', 'trigger', 'output')],
+    );
+
+    const result = await executor.execute(flow, {}, onEvent, context);
+    expect(result.steps.some(s => s.nodeId === 'output')).toBe(true);
+  });
+
+  it('does not require an output node for non-subflow flows', async () => {
+    const flow = makeFlow(
+      [
+        makeNode('trigger', 'trigger'),
+        makeNode('code', 'code', { config: { code: 'return input;' } }),
+      ],
+      [makeEdge('e1', 'trigger', 'code')],
+    );
+
+    const result = await executor.execute(flow, {}, onEvent, context);
+    expect(result.steps.some(s => s.nodeId === 'code')).toBe(true);
+  });
+});
+
 describe('compileFlow — subflow input mapping validation', () => {
   let executor: FlowExecutor;
   let onEvent: any;
@@ -251,13 +318,7 @@ describe('compileFlow — subflow input mapping validation', () => {
   });
 
   it('fails when subflow input mapping references a non-upstream node', async () => {
-    context.getFlow = vi.fn().mockResolvedValue({
-      id: 'sf',
-      name: 'SF',
-      nodes: [makeNode('trigger', 'trigger', { config: { triggerType: 'subflow', inputSchema: '{"type":"object","properties":{"x":{"type":"string"}},"required":["x"]}' } })],
-      edges: [],
-      version: 1,
-    } as any);
+    context.getFlow = vi.fn().mockResolvedValue(makeSubflowDef('sf', { inputSchema: '{"type":"object","properties":{"x":{"type":"string"}},"required":["x"]}' }));
 
     const flow = makeFlow(
       [
@@ -289,13 +350,7 @@ describe('compileFlow — subflow input mapping validation', () => {
   });
 
   it('permits empty inputMapping when subflow has no inputSchema', async () => {
-    context.getFlow = vi.fn().mockResolvedValue({
-      id: 'sf',
-      name: 'SF',
-      nodes: [makeNode('trigger', 'trigger', { config: { triggerType: 'subflow' } })],
-      edges: [],
-      version: 1,
-    } as any);
+    context.getFlow = vi.fn().mockResolvedValue(makeSubflowDef('sf'));
 
     const flow = makeFlow(
       [

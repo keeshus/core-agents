@@ -465,6 +465,13 @@ export class FlowExecutor {
     const errors: string[] = [];
     const computeSlug = (n: FlowNode) => slugify(n.data?.label || n.id);
 
+    // Validate subflow trigger requires an output node
+    const hasSubflowTrigger = sorted.some(n => n.data.type === 'trigger' && (n.data as any).config?.triggerType === 'subflow');
+    const hasOutputNode = sorted.some(n => n.data.type === 'output');
+    if (hasSubflowTrigger && !hasOutputNode) {
+      errors.push('Subflow: requires an Output node');
+    }
+
     for (let i = 0; i < sorted.length; i++) {
       const node = sorted[i];
       const config = (node.data as any)?.config || {};

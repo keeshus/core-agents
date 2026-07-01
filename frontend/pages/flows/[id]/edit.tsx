@@ -46,11 +46,15 @@ export default function FlowEditPage() {
   }, [flow?.name, flow?.id]);
 
   const isChatFlow = useMemo(() => nodes.some(n => n.data?.type === 'trigger' && n.data?.config?.triggerType === 'chat'), [nodes]);
+  const isSubflowFlow = useMemo(() => nodes.some(n => n.data?.type === 'trigger' && n.data?.config?.triggerType === 'subflow'), [nodes]);
 
   // Validation: save button disabled when flow name is empty or not unique
   const saveError = useMemo(() => {
     if (!flow?.name?.trim()) return 'Flow name is required';
     if (!nameAvailable) return 'Another flow with this name already exists';
+    if (isSubflowFlow) {
+      if (!nodes.some(n => n.data?.type === 'output')) return 'Subflow: requires an Output node';
+    }
     if (isChatFlow) {
       if (!nodes.some(n => n.data?.type === 'output')) return 'Chat flow: requires an Output node';
       for (const out of nodes) {
