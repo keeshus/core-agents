@@ -874,11 +874,14 @@ export class FlowExecutor {
             const strVal = String(result).trim();
             // Try to match the value against an output label
             matchedLabel = labels.find(l => l && l.toLowerCase() === strVal.toLowerCase()) || '';
-            if (!matchedLabel) {
+            if (matchedLabel) {
+              verdict = true;
+            } else {
               // Check if a default path is configured
               const defaultPath = config.defaultPath;
               if (defaultPath && labels.includes(defaultPath)) {
                 matchedLabel = defaultPath;
+                verdict = true;
               } else {
                 throw new Error(
                   `Branch condition "${rawCondition}" returned "${strVal}", which does not match any output label. ` +
@@ -1007,6 +1010,13 @@ export class FlowExecutor {
 
         // Multiple fields: return as object
         return inp || input;
+      }
+
+      case 'stop': {
+        const config = (nodeData as any)?.config || {};
+        const status = config.status || 'completed';
+        const message = config.message || 'Execution stopped by Stop node';
+        throw new FlowStopError(node.id, message, status);
       }
 
       default:

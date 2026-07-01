@@ -1,0 +1,20 @@
+# ── Core Agents Worker (E2E dev mode) ─────────────────────────────
+FROM node:25-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY shared/package*.json ./shared/
+COPY shared/tsconfig.json ./shared/
+COPY shared/src ./shared/src/
+COPY worker/package*.json ./worker/
+COPY backend/package*.json ./backend/
+
+RUN npm install -w shared -w worker -w backend && npm cache clean --force
+
+COPY worker/tsconfig.json ./worker/
+COPY worker/src ./worker/src/
+COPY backend/tsconfig.json ./backend/
+COPY backend/src ./backend/src/
+
+CMD ["npx", "tsx", "worker/src/run.ts"]

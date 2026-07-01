@@ -1,0 +1,8 @@
+{
+  "name": "mock-llm",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "tsx": "^4.19.0"
+  }
+}

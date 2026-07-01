@@ -86,3 +86,28 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
       - backend-e2e
+
+  worker-e2e:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.e2e
+    container_name: core-agents-e2e-worker
+    environment:
+      DATABASE_URL: postgres://coreagents:coreagents@postgres-e2e:5432/coreagents
+      VALKEY_HOST: valkey-e2e
+      VALKEY_PASSWORD: dev-valkey
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+      db-migrate-e2e:
+        condition: service_completed_successfully
+      valkey-e2e:
+        condition: service_started
+
+  mock-llm-e2e:
+    build:
+      context: ./test/mock-llm
+      dockerfile: Dockerfile
+    container_name: core-agents-e2e-mock-llm
+    ports:
+      - "3002:3002"
