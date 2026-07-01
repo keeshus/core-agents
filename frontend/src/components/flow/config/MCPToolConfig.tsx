@@ -47,10 +47,16 @@ export function MCPToolConfig({ config, onChange }: MCPToolConfigProps) {
             onChange={(v) => onChange({ ...config, toolName: v })}
             options={[
               { value: '', label: 'Select tool...' },
+              { value: '*', label: 'All tools' },
               ...selectedServer.tools.map((t: any) => ({ value: t.name, label: t.name })),
             ]}
           />
-          {config.toolName && (
+          {config.toolName === '*' && (
+            <p className="mt-1 text-[10px] text-on-surface-variant">
+              All {selectedServer.tools.length} tools from this server will be available to the LLM Agent.
+            </p>
+          )}
+          {config.toolName && config.toolName !== '*' && (
             <p className="mt-1 text-[10px] text-on-surface-variant">
               {selectedServer.tools.find((t: any) => t.name === config.toolName)
                 ?.description || ''}

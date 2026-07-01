@@ -574,19 +574,29 @@ export class FlowExecutor {
             const mcpNode = context.flowNodes?.find((n: any) => n.id === edge.source);
             if (!mcpNode || mcpNode.data?.type !== 'mcp-tool') continue;
             const mcpConfig = (mcpNode.data as any).config || {};
-            if (!mcpConfig.serverId || !mcpConfig.toolName) continue;
+            if (!mcpConfig.serverId) continue;
 
             try {
               const server = await context.getMCPServer!(mcpConfig.serverId);
               if (server) {
                 const serverTools = server.tools || [];
-                const tool = serverTools.find((t: any) => t.name === mcpConfig.toolName);
-                if (tool) {
-                  toolDefs.push({
-                    name: tool.name,
-                    description: tool.description || '',
-                    input_schema: tool.inputSchema || {},
-                  });
+                if (mcpConfig.toolName === '*') {
+                  for (const tool of serverTools) {
+                    toolDefs.push({
+                      name: tool.name,
+                      description: tool.description || '',
+                      input_schema: tool.inputSchema || {},
+                    });
+                  }
+                } else if (mcpConfig.toolName) {
+                  const tool = serverTools.find((t: any) => t.name === mcpConfig.toolName);
+                  if (tool) {
+                    toolDefs.push({
+                      name: tool.name,
+                      description: tool.description || '',
+                      input_schema: tool.inputSchema || {},
+                    });
+                  }
                 }
               }
             } catch { /* skip unavailable servers */ }
@@ -700,7 +710,8 @@ export class FlowExecutor {
                 const mcpNode = context.flowNodes?.find((n: any) => n.id === edge.source);
                 if (!mcpNode) continue;
                 const mcpConfig = (mcpNode.data as any).config || {};
-                if (mcpConfig.toolName === tc.name && mcpConfig.serverId) {
+                const toolMatch = mcpConfig.toolName === '*' || mcpConfig.toolName === tc.name;
+                if (toolMatch && mcpConfig.serverId) {
                   const { mcpHub } = await import('../tools/hub.js');
                   const server = await context.getMCPServer!(mcpConfig.serverId);
                   if (server) {
