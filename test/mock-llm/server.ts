@@ -79,7 +79,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const { model, messages, stream, response_format } = params;
+    const { model, messages, stream, response_format, tools } = params;
+
+    // Check for MOCK_TOOL_CALL directive in system prompt
+    let toolToCall: string | null = null;
+    let toolArgs: string = '{}';
+    for (const msg of messages || []) {
+      if (msg.role === 'system' && typeof msg.content === 'string') {
+        const match = msg.content.match(/MOCK_TOOL_CALL:\s*(\S+)(?:\s+({.+}))?/);
+        if (match) {
+          toolToCall = match[1];
+          if (match[2]) toolArgs = match[2];
+        }
+      }
+    }
+
     const mockContent = extractResponse(messages || []);
 
     const responseId = `mock_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -93,17 +107,28 @@ const server = http.createServer(async (req, res) => {
         Connection: 'keep-alive',
       });
 
-      const content = String(mockContent);
-      const tokens = content.split(/(\s+)/);
-
-      res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}\n\n`);
-
-      for (const token of tokens) {
-        res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content: token }, finish_reason: null }] })}\n\n`);
-        await new Promise(r => setTimeout(r, 5));
+      if (toolToCall) {
+        // Stream a tool call response
+        let args: Record<string, unknown> = {};
+        try { args = JSON.parse(toolArgs); } catch { args = {}; }
+        const argStr = JSON.stringify(args);
+        res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}\n\n`);
+        res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: `call_${Date.now()}`, type: 'function', function: { name: toolToCall, arguments: '' } }] } }] })}\n\n`);
+        // Stream arguments in chunks
+        for (let i = 0; i < argStr.length; i += 50) {
+          res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: argStr.slice(i, i + 50) } }] } }] })}\n\n`);
+        }
+        res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] })}\n\n`);
+      } else {
+        const content = String(mockContent);
+        const tokens = content.split(/(\s+)/);
+        res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}\n\n`);
+        for (const token of tokens) {
+          res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content: token }, finish_reason: null }] })}\n\n`);
+          await new Promise(r => setTimeout(r, 5));
+        }
+        res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
       }
-
-      res.write(`data: ${JSON.stringify({ id: responseId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
       return;
@@ -117,11 +142,29 @@ const server = http.createServer(async (req, res) => {
       model: model || 'mock-model',
       choices: [{
         index: 0,
-        message: { role: 'assistant', content: mockContent },
-        finish_reason: 'stop',
+        message: { role: 'assistant' },
+        finish_reason: toolToCall ? 'tool_calls' : 'stop',
       }],
       usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
     };
+
+    if (toolToCall) {
+      // Return a tool call instead of text
+      let args: Record<string, unknown> = {};
+      try { args = JSON.parse(toolArgs); } catch { args = {}; }
+      response.choices[0].message.content = null;
+      response.choices[0].message.tool_calls = [{
+        index: 0,
+        id: `call_${Date.now()}`,
+        type: 'function',
+        function: {
+          name: toolToCall,
+          arguments: JSON.stringify(args),
+        },
+      }];
+    } else {
+      response.choices[0].message.content = mockContent;
+    }
 
     // If json_object response requested, try to parse mockContent as JSON
     if (response_format?.type === 'json_object') {
