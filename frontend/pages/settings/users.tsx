@@ -24,12 +24,14 @@ interface User {
   is_active: boolean;
   last_login_at: string | null;
   created_at: string;
+  groups?: Array<{ id: string; name: string; provider: string }>;
 }
 
 export default function UsersSettingsPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [allGroups, setAllGroups] = useState<{ id: string; name: string; provider: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const deleteConfirm = useConfirm({ title: 'Delete user?', message: 'Delete this user? This cannot be undone.' });
@@ -41,6 +43,9 @@ export default function UsersSettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [groupUser, setGroupUser] = useState<User | null>(null);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [savingGroups, setSavingGroups] = useState(false);
 
   const handleCreate = async () => {
     if (!newName || !newEmail || !newPassword) { setCreateError('All fields required'); return; }
@@ -65,13 +70,15 @@ export default function UsersSettingsPage() {
     setLoading(true);
     setError('');
     try {
-      const [usersRes, rolesRes] = await Promise.all([
+      const [usersRes, rolesRes, groupsRes] = await Promise.all([
         fetch(`${API_URL}/users`, { credentials: 'include' }),
         fetch(`${API_URL}/roles`, { credentials: 'include' }),
+        fetch(`${API_URL}/groups`, { credentials: 'include' }),
       ]);
-      if (!usersRes.ok || !rolesRes.ok) throw new Error('Failed to load');
+      if (!usersRes.ok || !rolesRes.ok || !groupsRes.ok) throw new Error('Failed to load');
       setUsers(await usersRes.json());
       setRoles(await rolesRes.json());
+      setAllGroups(await groupsRes.json());
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -99,6 +106,11 @@ export default function UsersSettingsPage() {
       setError(err.message);
     }
   };
+
+const openGroupManager = (u: User) => {
+  setGroupUser(u);
+  setSelectedGroupIds((u.groups || []).map(g => g.id));
+};
 
   const handleDelete = async (userId: string) => {
     const confirmed = await deleteConfirm.confirm();
@@ -159,6 +171,7 @@ export default function UsersSettingsPage() {
                   <th className="text-left p-3 font-medium text-on-surface-variant text-xs uppercase tracking-wider">Email</th>
                   <th className="text-left p-3 font-medium text-on-surface-variant text-xs uppercase tracking-wider">Role</th>
                   <th className="text-left p-3 font-medium text-on-surface-variant text-xs uppercase tracking-wider">Provider</th>
+                  <th className="text-left p-3 font-medium text-on-surface-variant text-xs uppercase tracking-wider">Groups</th>
                   <th className="text-left p-3 font-medium text-on-surface-variant text-xs uppercase tracking-wider">Last Login</th>
                   <th className="p-3" />
                 </tr>
@@ -177,19 +190,39 @@ export default function UsersSettingsPage() {
                       />
                     </td>
                     <td className="p-3 text-on-surface-variant capitalize">{u.provider}</td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(u as any).groups?.map((g: any) => (
+                          <span key={g.id} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-secondary-container text-on-secondary-container font-medium">
+                            {g.name}
+                          </span>
+                        ))}
+                        {(!(u as any).groups || (u as any).groups.length === 0) && <span className="text-xs text-on-surface-variant">—</span>}
+                      </div>
+                    </td>
                     <td className="p-3 text-on-surface-variant text-xs">
                       {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('nl-NL') : 'never'}
                     </td>
                     <td className="p-3 text-right">
-                      <Tooltip content="Delete user">
-                        <button
-                          onClick={() => handleDelete(u.id)}
-                          disabled={deleting === u.id}
-                          className="flex items-center gap-1 p-1.5 text-xs text-on-surface-variant hover:text-error hover:bg-error-container disabled:opacity-50 rounded transition-colors"
-                        >
-                          {deleting === u.id ? <Icon name="sync" className="text-base animate-spin" /> : <Icon name="delete" className="text-base" />} Delete
-                        </button>
-                      </Tooltip>
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip content="Manage groups">
+                          <button
+                            onClick={() => openGroupManager(u)}
+                            className="flex items-center gap-1 p-1.5 text-xs text-on-surface-variant hover:text-primary hover:bg-primary-container rounded transition-colors"
+                          >
+                            <Icon name="group" className="text-base" /> Groups
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Delete user">
+                          <button
+                            onClick={() => handleDelete(u.id)}
+                            disabled={deleting === u.id}
+                            className="flex items-center gap-1 p-1.5 text-xs text-on-surface-variant hover:text-error hover:bg-error-container disabled:opacity-50 rounded transition-colors"
+                          >
+                            {deleting === u.id ? <Icon name="sync" className="text-base animate-spin" /> : <Icon name="delete" className="text-base" />} Delete
+                          </button>
+                        </Tooltip>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -200,6 +233,61 @@ export default function UsersSettingsPage() {
 
       </div>
       {deleteConfirm.dialog}
+
+      {/* Manage Groups Dialog */}
+      {groupUser && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center" onClick={() => setGroupUser(null)}>
+          <div className="bg-surface rounded-lg shadow-m3-4 max-w-md w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-on-surface">Groups for {groupUser.name}</h3>
+              <button onClick={() => setGroupUser(null)} className="flex items-center gap-1 text-on-surface-variant hover:text-error hover:bg-error-container p-1.5 rounded transition-colors"><Icon name="close" className="text-base" /> Close</button>
+            </div>
+            {savingGroups && <div className="text-sm text-on-surface-variant mb-3">Saving...</div>}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {allGroups.map(g => {
+                const isSelected = selectedGroupIds.includes(g.id);
+                return (
+                  <label key={g.id} className="flex items-center gap-3 p-2 rounded hover:bg-surface-container-high cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        setSelectedGroupIds(prev =>
+                          isSelected ? prev.filter(id => id !== g.id) : [...prev, g.id]
+                        );
+                      }}
+                      className="rounded accent-primary"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-on-surface">{g.name}</span>
+                      <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        g.provider === 'local' ? 'bg-primary-container text-primary' : 'bg-secondary-container text-on-secondary-container'
+                      }`}>{g.provider}</span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <button
+              onClick={async () => {
+                setSavingGroups(true);
+                try {
+                  await fetch(`${API_URL}/users/${groupUser.id}/groups`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ groupIds: selectedGroupIds }),
+                  });
+                  setGroupUser(null);
+                } catch {} finally { setSavingGroups(false); }
+              }}
+              disabled={savingGroups}
+              className="w-full m3-button mt-4 disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Create User Modal */}
       {showCreate && (

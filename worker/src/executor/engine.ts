@@ -19,9 +19,12 @@ export class HitlPauseError extends Error {
   public buttons: Array<{ label: string; value: string; icon?: string }>;
   public prompt: string;
   public assignmentType?: string;
-  public assignees?: { userIds: string[]; roleIds: string[] };
+  public assignees?: { userIds: string[]; roleIds: string[]; groupIds?: string[] };
   public requiredApprovals?: number;
-  constructor(nodeId: string, savedOutputs: Record<string, unknown>, buttons?: Array<{ label: string; value: string; icon?: string }>, prompt?: string, assignmentType?: string, assignees?: { userIds: string[]; roleIds: string[] }, requiredApprovals?: number) {
+  public assignedGroupId?: string;
+  public assignedUserId?: string;
+  public assignedRoleId?: string;
+  constructor(nodeId: string, savedOutputs: Record<string, unknown>, buttons?: Array<{ label: string; value: string; icon?: string }>, prompt?: string, assignmentType?: string, assignees?: { userIds: string[]; roleIds: string[]; groupIds?: string[] }, requiredApprovals?: number, assignedGroupId?: string, assignedUserId?: string, assignedRoleId?: string) {
     super(`HITL: waiting for human input at node ${nodeId}`);
     this.name = 'HitlPauseError';
     this.nodeId = nodeId;
@@ -31,6 +34,9 @@ export class HitlPauseError extends Error {
     this.assignmentType = assignmentType;
     this.assignees = assignees;
     this.requiredApprovals = requiredApprovals;
+    this.assignedGroupId = assignedGroupId;
+    this.assignedUserId = assignedUserId;
+    this.assignedRoleId = assignedRoleId;
   }
 }
 
@@ -413,7 +419,7 @@ export class FlowExecutor {
             if (k !== '__input__' && flow.nodes.some(n => n.id === k)) saved[k] = v;
           }
           const hitlConfig = (node.data as any)?.config || {};
-          throw new HitlPauseError(err.nodeId, saved, hitlConfig.buttons, err.prompt);
+          throw new HitlPauseError(err.nodeId, saved, hitlConfig.buttons, err.prompt, err.assignmentType, err.assignees, err.requiredApprovals, err.assignedGroupId, err.assignedUserId, err.assignedRoleId);
         }
         const error = err instanceof Error ? err.message : String(err);
         await onEvent(node.id, {
@@ -961,7 +967,10 @@ export class FlowExecutor {
         const assignmentType = hitlCfg.assignmentType;
         const assignees = hitlCfg.assignees;
         const requiredApprovals = hitlCfg.requiredApprovals;
-        throw new HitlPauseError(node.id, {}, buttons, resolvedPrompt, assignmentType, assignees, requiredApprovals);
+        const assignedGroupId = hitlCfg.assignedGroupId;
+        const assignedUserId = hitlCfg.assignedUserId;
+        const assignedRoleId = hitlCfg.assignedRoleId;
+        throw new HitlPauseError(node.id, {}, buttons, resolvedPrompt, assignmentType, assignees, requiredApprovals, assignedGroupId, assignedUserId, assignedRoleId);
       }
 
       case 'output': {

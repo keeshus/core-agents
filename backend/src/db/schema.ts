@@ -41,6 +41,35 @@ export const messageRoleEnum = pgEnum('message_role', [
 
 // ─── Tables ───────────────────────────────────────────────────────────────────
 
+export const groups = pgTable('groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  description: text('description').notNull().default(''),
+  provider: text('provider').notNull().default('local'),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const groupMembers = pgTable('group_members', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id').notNull().references(() => groups.id),
+  user_id: uuid('user_id').notNull().references(() => users.id),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const ssoConfig = pgTable('sso_config', {
+  id: integer('id').primaryKey().default(1),
+  provider: text('provider').notNull().default(''),
+  client_id: text('client_id').notNull().default(''),
+  client_secret: text('client_secret').notNull().default(''),
+  issuer: text('issuer').notNull().default(''),
+  redirect_uri: text('redirect_uri').notNull().default('http://localhost:3001/api/auth/sso/callback'),
+  group_claim: text('group_claim').notNull().default('groups'),
+  admin_group_mapping: text('admin_group_mapping').array().notNull().default([]),
+  editor_group_mapping: text('editor_group_mapping').array().notNull().default([]),
+  enabled: boolean('enabled').notNull().default(false),
+  updated_at: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const flows = pgTable('flows', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -49,6 +78,7 @@ export const flows = pgTable('flows', {
   edges: jsonb('edges').notNull().default('[]'),
   version: integer('version').notNull().default(1),
   created_by: uuid('created_by').references(() => users.id),
+  group_id: uuid('group_id').references(() => groups.id),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -61,6 +91,7 @@ export const flowVersions = pgTable('flow_versions', {
   nodes: jsonb('nodes').notNull(),
   edges: jsonb('edges').notNull(),
   version: integer('version').notNull(),
+  group_id: uuid('group_id'),
   created_at: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -218,6 +249,7 @@ export const userAssignments = pgTable('user_assignments', {
   hitl_node_id: text('hitl_node_id').notNull(),
   assigned_to_user_id: uuid('assigned_to_user_id').references(() => users.id),
   assigned_to_role_id: uuid('assigned_to_role_id').references(() => roles.id),
+  assigned_to_group_id: uuid('assigned_to_group_id').references(() => groups.id),
   status: text('status').notNull().default('pending'),
   feedback: text('feedback'),
   decided_by_user_id: uuid('decided_by_user_id').references(() => users.id),

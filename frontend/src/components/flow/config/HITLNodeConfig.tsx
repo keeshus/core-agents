@@ -137,6 +137,31 @@ function UserSearch({ assignedUserId, onSelect }: { assignedUserId: string; onSe
   );
 }
 
+function GroupSearch({ assignedGroupId, onSelect }: { assignedGroupId: string; onSelect: (groupId: string) => void }) {
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_URL}/groups`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setGroups(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <SearchableList
+      items={groups}
+      selectedId={assignedGroupId}
+      placeholder="Search groups"
+      onSelect={onSelect}
+      getItemId={(g) => g.id}
+      renderItem={(g) => <span className="font-medium text-on-surface">{g.name}</span>}
+      loading={loading}
+    />
+  );
+}
+
 function RoleSelect({ assignedRoleId, onSelect }: { assignedRoleId: string; onSelect: (roleId: string) => void }) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,11 +188,12 @@ function RoleSelect({ assignedRoleId, onSelect }: { assignedRoleId: string; onSe
 }
 
 function MultiAssignPicker({ config, onChange }: { config: any; onChange: (updates: any) => void }) {
-  const assigned = config.assignees || { userIds: [], roleIds: [] };
-  const [showPicker, setShowPicker] = useState<'user' | 'role' | null>(null);
+  const assigned = config.assignees || { userIds: [], roleIds: [], groupIds: [] };
+  const [showPicker, setShowPicker] = useState<'user' | 'role' | 'group' | null>(null);
 
   const removeUser = (id: string) => onChange({ assignees: { ...assigned, userIds: assigned.userIds.filter((u: string) => u !== id) } });
   const removeRole = (id: string) => onChange({ assignees: { ...assigned, roleIds: assigned.roleIds.filter((r: string) => r !== id) } });
+  const removeGroup = (id: string) => onChange({ assignees: { ...assigned, groupIds: assigned.groupIds.filter((g: string) => g !== id) } });
 
   return (
     <div className="space-y-2">
@@ -184,10 +210,17 @@ function MultiAssignPicker({ config, onChange }: { config: any; onChange: (updat
             <button onClick={() => removeRole(id)} aria-label="Remove role" className="hover:text-error"><Icon name="close" className="text-[10px]" /></button>
           </span>
         ))}
+        {assigned.groupIds?.map((id: string) => (
+          <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-tertiary-container text-on-tertiary-container font-medium">
+            Group:{id.slice(0, 8)}
+            <button onClick={() => removeGroup(id)} aria-label="Remove group" className="hover:text-error"><Icon name="close" className="text-[10px]" /></button>
+          </span>
+        ))}
       </div>
       <div className="flex gap-2">
         <button onClick={() => setShowPicker(showPicker === 'user' ? null : 'user')} className="text-xs text-primary hover:underline">+ Add user</button>
         <button onClick={() => setShowPicker(showPicker === 'role' ? null : 'role')} className="text-xs text-primary hover:underline">+ Add role</button>
+        <button onClick={() => setShowPicker(showPicker === 'group' ? null : 'group')} className="text-xs text-primary hover:underline">+ Add group</button>
       </div>
       {showPicker === 'user' && (
         <UserSearch
@@ -199,6 +232,12 @@ function MultiAssignPicker({ config, onChange }: { config: any; onChange: (updat
         <RoleSelect
           assignedRoleId=""
           onSelect={(roleId) => { onChange({ assignees: { ...assigned, roleIds: [...assigned.roleIds, roleId] } }); setShowPicker(null); }}
+        />
+      )}
+      {showPicker === 'group' && (
+        <GroupSearch
+          assignedGroupId=""
+          onSelect={(groupId) => { onChange({ assignees: { ...assigned, groupIds: [...(assigned.groupIds || []), groupId] } }); setShowPicker(null); }}
         />
       )}
     </div>
@@ -293,6 +332,7 @@ export function HITLNodeConfig({ config, onChange, nodeId, nodes, edges }: HITLN
           onChange={(v) => { onChange({ assignmentType: v, assignees: v === 'multi' ? (config.assignees || { userIds: [], roleIds: [] }) : undefined }); }}
           options={[
             { value: 'user', label: 'Specific user' },
+            { value: 'group', label: 'Specific group' },
             { value: 'role', label: 'Specific role' },
             ...(mode === 'simple' ? [{ value: 'multi', label: 'Multi-approver' }] : []),
           ]}
@@ -303,6 +343,13 @@ export function HITLNodeConfig({ config, onChange, nodeId, nodes, edges }: HITLN
         <UserSearch
           assignedUserId={config.assignedUserId || ''}
           onSelect={(userId) => onChange({ assignedUserId: userId })}
+        />
+      )}
+
+      {config.assignmentType === 'group' && (
+        <GroupSearch
+          assignedGroupId={config.assignedGroupId || ''}
+          onSelect={(groupId) => onChange({ assignedGroupId: groupId })}
         />
       )}
 

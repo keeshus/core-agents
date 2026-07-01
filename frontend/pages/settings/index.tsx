@@ -33,6 +33,18 @@ export default function SettingsIndex() {
       title: 'Users',
       description: 'Manage user accounts and roles',
     }] : []),
+    {
+      href: '/settings/groups',
+      icon: 'group',
+      title: 'Groups',
+      description: 'Manage user groups for flow visibility and HITL assignment',
+    },
+    ...(can('admin') ? [{
+      href: '/settings/sso',
+      icon: 'key',
+      title: 'SSO / OIDC',
+      description: 'Configure single sign-on with your identity provider',
+    }] : []),
   ];
 
   return (

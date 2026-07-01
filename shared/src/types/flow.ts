@@ -116,7 +116,7 @@ export interface HitlNodeData extends BaseNodeData {
     buttons: Array<{ label: string; value: string }>;
     allowFeedback?: boolean;
     maxIterations?: number;
-    assignedTo?: { type: 'user'; userId: string } | { type: 'role'; roleId: string };
+    assignedTo?: { type: 'user'; userId: string } | { type: 'role'; roleId: string } | { type: 'group'; groupId: string };
   };
 }
 

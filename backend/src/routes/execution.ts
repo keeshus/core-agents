@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '../db/connection.js';
-import { executions, executionSteps, flows, llmEndpoints, mcpServers, embeddingProviders, vectorStores } from '../db/schema.js';
+import { executions, executionSteps, flows, llmEndpoints, mcpServers, embeddingProviders, vectorStores, groups, groupMembers, users } from '../db/schema.js';
 import { FlowExecutor, HitlPauseError, FlowStopError } from '../../../worker/src/executor/engine.js';
 import { getStore, listStores } from '../vector-stores/index.js';
 import { requirePermission } from '../middleware/auth.js';
@@ -14,11 +14,32 @@ const router = Router();
 const activeExecutors = new Map<string, FlowExecutor>();
 
 // GET /api/executions/pending — list executions awaiting approval (for approvals page)
-router.get('/executions/pending', requirePermission('execution:approve'), asyncHandler(async (_req, res) => {
+router.get('/executions/pending', requirePermission('execution:approve'), asyncHandler(async (req, res) => {
+  const isAdmin = req.user?.permissions?.includes('admin');
+  let conditions = [eq(executions.status, 'awaiting_approval')];
+
+  if (!isAdmin) {
+    const userGroupIds = await db
+      .select({ groupId: groupMembers.group_id })
+      .from(groupMembers)
+      .where(eq(groupMembers.user_id, req.user!.userId));
+    const groupIdList = userGroupIds.map(g => g.groupId);
+
+    const accessibleFlows = await db.select({ id: flows.id })
+      .from(flows)
+      .where(
+        groupIdList.length > 0
+          ? or(isNull(flows.group_id), inArray(flows.group_id, groupIdList))
+          : isNull(flows.group_id)
+      );
+    const accessibleFlowIds = accessibleFlows.map(f => f.id);
+    conditions.push(inArray(executions.flow_id, accessibleFlowIds));
+  }
+
   const result = await db
     .select()
     .from(executions)
-    .where(eq(executions.status, 'awaiting_approval'))
+    .where(and(...conditions))
     .orderBy(desc(executions.created_at));
   // Filter out debug runs
   const filtered = result.filter((r: any) => !r.input?._debug);
@@ -293,7 +314,15 @@ router.post(
             .set({
               status: 'awaiting_approval',
               output: { ...err.savedOutputs, _flowSnapshot: flowSnapshot, _hitlButtons: err.buttons, _hitlPrompt: err.prompt, _hitlAllowFeedback: (hitlCfg as any).allowFeedback !== false, _hitlNodeId: err.nodeId, _pausedAt: Date.now(), _nextIteration: 1 } as any,
-              pending_hitls: JSON.stringify([{ nodeId: err.nodeId, prompt: err.prompt, buttons: err.buttons, savedOutputs: err.savedOutputs }]) as any,
+              pending_hitls: JSON.stringify([{
+                nodeId: err.nodeId,
+                prompt: err.prompt,
+                buttons: err.buttons,
+                savedOutputs: err.savedOutputs,
+                assignmentType: err.assignmentType,
+                assignees: err.assignees,
+                requiredApprovals: err.requiredApprovals,
+              }]) as any,
             })
             .where(eq(executions.id, exec.id));
         }
@@ -352,15 +381,81 @@ router.post('/executions/:executionId/approve', requirePermission('execution:app
     : pendingHitls[0];
   if (!hitlEntry) { res.status(400).json({ error: 'No pending HITL found' }); return; }
 
+  const userId = req.user!.userId;
+
+  // Resolve group members for group-type assignments
+  if (hitlEntry.assignmentType === 'group' || hitlEntry.assignees?.groupIds?.length) {
+    if (!hitlEntry.assignees) hitlEntry.assignees = { userIds: [], roleIds: [], groupIds: [] };
+    const groupIdToResolve = hitlEntry.assignedGroupId || hitlEntry.assignees?.groupIds?.[0];
+    if (groupIdToResolve) {
+      if (!hitlEntry.assignees.groupIds.includes(groupIdToResolve)) {
+        hitlEntry.assignees.groupIds.push(groupIdToResolve);
+      }
+      const members = await db.select({ userId: groupMembers.user_id })
+        .from(groupMembers)
+        .where(eq(groupMembers.group_id, groupIdToResolve));
+      for (const m of members) {
+        if (!hitlEntry.assignees.userIds.includes(m.userId)) {
+          hitlEntry.assignees.userIds.push(m.userId);
+        }
+      }
+    }
+  }
+
+  // ── Single-user, single-role, or single-group assignment: resolve and enforce ──
+  if (hitlEntry.assignmentType && hitlEntry.assignmentType !== 'multi') {
+    let authorizedUserIds: string[] = [];
+
+    if (hitlEntry.assignmentType === 'user' && hitlEntry.assignedUserId) {
+      authorizedUserIds = [hitlEntry.assignedUserId];
+    } else if (hitlEntry.assignmentType === 'role' && hitlEntry.assignedRoleId) {
+      const roleUsers = await db.select({ id: users.id }).from(users).where(eq(users.role_id, hitlEntry.assignedRoleId));
+      authorizedUserIds = roleUsers.map(u => u.id);
+    } else if (hitlEntry.assignmentType === 'group') {
+      const groupId = hitlEntry.assignedGroupId || hitlEntry.assignees?.groupIds?.[0];
+      if (groupId) {
+        const members = await db.select({ userId: groupMembers.user_id })
+          .from(groupMembers)
+          .where(eq(groupMembers.group_id, groupId));
+        authorizedUserIds = members.map(m => m.userId);
+      }
+    }
+
+    if (authorizedUserIds.length > 0 && !authorizedUserIds.includes(userId)) {
+      res.status(403).json({ error: 'You are not assigned to this approval request' });
+      return;
+    }
+  }
+
+  // ── Resolve group-to-user for assignees (used by multi) ──
+  if (hitlEntry.assignees?.groupIds?.length && hitlEntry.assignmentType !== 'group') {
+    if (!hitlEntry.assignees.userIds) hitlEntry.assignees.userIds = [];
+    for (const groupId of hitlEntry.assignees.groupIds) {
+      const members = await db.select({ userId: groupMembers.user_id })
+        .from(groupMembers)
+        .where(eq(groupMembers.group_id, groupId));
+      for (const m of members) {
+        if (!hitlEntry.assignees.userIds.includes(m.userId)) {
+          hitlEntry.assignees.userIds.push(m.userId);
+        }
+      }
+    }
+  }
+
   // ── Multi-approver logic ──────────────────────────────────────────────────
   if (hitlEntry.assignmentType === 'multi') {
-    const userId = req.user!.userId;
     const currentApprovals: Array<{ userId: string; decision: string; feedback: string }> = hitlEntry.approvals || [];
 
     // Check if user already voted
     const existing = currentApprovals.find(a => a.userId === userId);
     if (existing) {
       res.status(400).json({ error: 'You have already responded to this request' });
+      return;
+    }
+
+    // Check if user is in the resolved assignees list
+    if (hitlEntry.assignees?.userIds?.length && !hitlEntry.assignees.userIds.includes(userId)) {
+      res.status(403).json({ error: 'You are not assigned to this approval request' });
       return;
     }
 
@@ -520,7 +615,16 @@ router.post('/executions/:executionId/approve', requirePermission('execution:app
       if (err instanceof HitlPauseError) {
         // Another HITL was hit — add to pending list, set back to awaiting_approval
         const stillPending = pendingHitls.filter((h: any) => h.nodeId !== hitlEntry.nodeId);
-        const newHitls = [...stillPending, { nodeId: err.nodeId, prompt: err.prompt, buttons: err.buttons, savedOutputs: err.savedOutputs }];
+        const newHitls = [...stillPending, {
+          nodeId: err.nodeId, prompt: err.prompt, buttons: err.buttons,
+          savedOutputs: err.savedOutputs,
+          assignmentType: err.assignmentType,
+          assignees: err.assignees,
+          requiredApprovals: err.requiredApprovals,
+          assignedGroupId: err.assignedGroupId,
+          assignedUserId: err.assignedUserId,
+          assignedRoleId: err.assignedRoleId,
+        }];
         const currentIter = (exec.output as any)?._nextIteration ?? 1;
         const prevPausedAt2 = (exec.output as any)?._pausedAt;
       const prevPausedTotal2 = (exec.output as any)?._pausedTotal || 0;

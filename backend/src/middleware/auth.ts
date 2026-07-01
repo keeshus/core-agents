@@ -24,6 +24,7 @@ export interface JwtPayload {
   email: string;
   role: string;
   permissions: string[];
+  groups?: Array<{ id: string; name: string }>;
 }
 
 declare module 'express' {

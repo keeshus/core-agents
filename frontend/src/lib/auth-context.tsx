@@ -8,6 +8,7 @@ interface User {
   name: string;
   role: string;
   permissions: string[];
+  groups?: Array<{ id: string; name: string }>;
 }
 
 export interface AuthConfig {
@@ -21,6 +22,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  isAdmin: boolean;
+  userGroups: Array<{ id: string; name: string }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -29,6 +32,8 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   register: async () => {},
   logout: async () => {},
+  isAdmin: false,
+  userGroups: [],
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -83,8 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const value = {
+    user,
+    loading,
+    login,
+    register,
+    logout,
+    isAdmin: user?.permissions?.includes('admin') ?? false,
+    userGroups: (user as any)?.groups || [],
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

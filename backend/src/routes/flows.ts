@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, and, asc, desc, sql } from 'drizzle-orm';
+import { eq, and, asc, desc, sql, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '../db/connection.js';
-import { flows, flowVersions, executions, executionSteps, chatMessages, chatSessions, userAssignments, users } from '../db/schema.js';
+import { flows, flowVersions, executions, executionSteps, chatMessages, chatSessions, userAssignments, users, groups, groupMembers } from '../db/schema.js';
 import { requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -19,6 +19,25 @@ router.get(
     const whereClause = search
       ? sql`(${flows.name}::text ILIKE ${'%' + search + '%'} OR ${flows.description}::text ILIKE ${'%' + search + '%'})`
       : undefined;
+
+    // Apply group-based filtering for non-admin users
+    const isAdmin = req.user?.permissions?.includes('admin');
+    let effectiveWhere = whereClause;
+
+    if (!isAdmin) {
+      const userGroupIds = await db
+        .select({ groupId: groupMembers.group_id })
+        .from(groupMembers)
+        .where(eq(groupMembers.user_id, req.user!.userId));
+      const groupIdList = userGroupIds.map(g => g.groupId);
+
+      const groupFilter = groupIdList.length > 0
+        ? or(isNull(flows.group_id), inArray(flows.group_id, groupIdList))
+        : isNull(flows.group_id);
+
+      effectiveWhere = effectiveWhere ? and(effectiveWhere, groupFilter) : groupFilter;
+    }
+
     const baseQuery = db.select({
       id: flows.id,
       name: flows.name,
@@ -32,9 +51,10 @@ router.get(
       updated_at: flows.updated_at,
     }).from(flows).leftJoin(users, eq(flows.created_by, users.id));
     const countQuery = db.select({ count: sql<number>`count(*)` }).from(flows);
-    const dataPromise = (whereClause ? baseQuery.where(whereClause) : baseQuery).orderBy(orderDir(sortBy)).limit(limit).offset(offset);
-    const countPromise = whereClause ? countQuery.where(whereClause) : countQuery;
+    const dataPromise = (effectiveWhere ? baseQuery.where(effectiveWhere) : baseQuery).orderBy(orderDir(sortBy)).limit(limit).offset(offset);
+    const countPromise = effectiveWhere ? countQuery.where(effectiveWhere) : countQuery;
     const [result, countResult] = await Promise.all([dataPromise, countPromise]);
+
     const sortParam = (req.query.sort as string) === 'created_at' ? 'created_at' : 'updated_at';
     res.json({ data: result, total: Number(countResult[0].count), limit, offset, search: search || undefined, sort: sortParam });
   }),
@@ -95,7 +115,7 @@ router.post(
   '/',
   requirePermission('flow:create'),
   asyncHandler(async (req, res) => {
-    const { name, description = '', nodes = [], edges = [] } = req.body;
+    const { name, description = '', nodes = [], edges = [], group_id } = req.body;
 
     if (!name || !name.trim()) {
       res.status(400).json({ error: 'Flow name is required' });
@@ -118,6 +138,7 @@ router.post(
         nodes,
         edges,
         created_by: req.user?.userId,
+        group_id,
       })
       .returning();
 
@@ -131,7 +152,7 @@ router.put(
   requirePermission('flow:edit'),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
-    const { name, description, nodes, edges } = req.body;
+    const { name, description, nodes, edges, group_id } = req.body;
 
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
@@ -141,6 +162,7 @@ router.put(
     if (description !== undefined) updateData.description = description;
     if (nodes !== undefined) updateData.nodes = nodes;
     if (edges !== undefined) updateData.edges = edges;
+    if (group_id !== undefined) updateData.group_id = group_id;
 
     // Check for duplicate name if name changed
     if (name !== undefined && name.trim()) {

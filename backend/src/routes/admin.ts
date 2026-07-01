@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import { eq, desc } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { db } from '../db/connection.js';
-import { users, roles } from '../db/schema.js';
+import { users, roles, groups, groupMembers } from '../db/schema.js';
 import { authenticate, requirePermission } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -28,24 +28,33 @@ router.post('/roles/seed', requirePermission('admin'), asyncHandler(async (_req,
     {
       name: 'admin', description: 'Full system access', is_system: true,
       permissions: [
-        'admin', 'flow:create', 'flow:edit', 'flow:delete',
+        'admin', 'flow:create', 'flow:edit', 'flow:delete', 'flow:read',
         'endpoint:read', 'endpoint:write',
         'mcp:read', 'mcp:write',
         'embedding:read', 'embedding:write',
         'store:read', 'store:write',
         'document:write', 'knowledge:write',
         'chat:create', 'execution:approve',
+        'group:read', 'group:write',
       ],
     },
     {
       name: 'editor', description: 'Can create and edit flows', is_system: true,
       permissions: [
-        'flow:create', 'flow:edit', 'execution:approve',
+        'flow:create', 'flow:edit', 'flow:read',
+        'execution:approve',
         'endpoint:read', 'mcp:read', 'embedding:read', 'store:read',
         'document:write', 'knowledge:write', 'chat:create',
+        'group:read',
       ],
     },
-    { name: 'approver', description: 'Can approve Human-in-the-Loop requests', permissions: ['execution:approve'], is_system: true },
+    {
+      name: 'reader', description: 'Can view flows and approve requests', is_system: true,
+      permissions: [
+        'flow:read', 'chat:create', 'execution:approve',
+        'group:read', 'endpoint:read', 'mcp:read', 'embedding:read', 'store:read',
+      ],
+    },
   ];
 
   const created: string[] = [];
@@ -66,7 +75,7 @@ router.get('/roles', requirePermission('admin'), asyncHandler(async (_req, res) 
   res.json(all);
 }));
 
-// GET /api/users — list all users with roles
+// GET /api/users — list all users with roles and groups
 router.get('/users', requirePermission('admin'), asyncHandler(async (_req, res) => {
   const all = await db
     .select({
@@ -83,7 +92,31 @@ router.get('/users', requirePermission('admin'), asyncHandler(async (_req, res) 
     .from(users)
     .leftJoin(roles, eq(users.role_id, roles.id))
     .orderBy(desc(users.created_at));
-  res.json(all);
+
+  // Enrich with group memberships
+  const allMemberships = await db
+    .select({
+      userId: groupMembers.user_id,
+      groupId: groups.id,
+      groupName: groups.name,
+      groupProvider: groups.provider,
+    })
+    .from(groupMembers)
+    .leftJoin(groups, eq(groupMembers.group_id, groups.id));
+
+  const groupsByUser: Record<string, Array<{ id: string; name: string; provider: string }>> = {};
+  for (const m of allMemberships) {
+    if (!m.groupId || !m.groupName) continue;
+    if (!groupsByUser[m.userId]) groupsByUser[m.userId] = [];
+    groupsByUser[m.userId].push({ id: m.groupId, name: m.groupName, provider: m.groupProvider || 'local' });
+  }
+
+  const enriched = all.map(u => ({
+    ...u,
+    groups: groupsByUser[u.id] || [],
+  }));
+
+  res.json(enriched);
 }));
 
 // DELETE /api/admin/users/:id — delete a user (admin only)
@@ -98,6 +131,32 @@ router.put('/users/:id/role', requirePermission('admin'), asyncHandler(async (re
   const id = req.params.id as string;
   const { role_id } = req.body || {};
   await db.update(users).set({ role_id }).where(eq(users.id, id));
+  res.json({ status: 'updated' });
+}));
+
+// PUT /api/admin/users/:id/groups — update a user's group memberships
+router.put('/users/:id/groups', requirePermission('admin'), asyncHandler(async (req, res) => {
+  const id = req.params.id as string;
+  const { groupIds } = req.body || {};
+  if (!Array.isArray(groupIds)) { res.status(400).json({ error: 'groupIds must be an array' }); return; }
+
+  // Remove existing local group memberships for this user
+  const localGroups = await db.select({ id: groups.id }).from(groups).where(eq(groups.provider, 'local'));
+  const localGroupIds = localGroups.map(g => g.id);
+  if (localGroupIds.length > 0) {
+    await db.delete(groupMembers).where(
+      and(eq(groupMembers.user_id, id), inArray(groupMembers.group_id, localGroupIds))
+    );
+  }
+
+  // Add new ones
+  for (const groupId of groupIds) {
+    const [group] = await db.select().from(groups).where(eq(groups.id, groupId));
+    if (group && group.provider === 'local') {
+      await db.insert(groupMembers).values({ group_id: groupId, user_id: id }).onConflictDoNothing();
+    }
+  }
+
   res.json({ status: 'updated' });
 }));
 

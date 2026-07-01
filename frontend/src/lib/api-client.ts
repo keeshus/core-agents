@@ -59,6 +59,16 @@ export async function* streamSSE(url: string, body: unknown, signal?: AbortSigna
 }
 
 export const api = {
+  groups: {
+    list: () => request<any[]>('/groups'),
+    get: (id: string) => request<any>(`/groups/${id}`),
+    create: (data: { name: string; description?: string }) => request<any>('/groups', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { name?: string; description?: string }) => request<any>(`/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/groups/${id}`, { method: 'DELETE' }),
+    addMember: (groupId: string, userId: string) => request<any>(`/groups/${groupId}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),
+    removeMember: (groupId: string, userId: string) => request<void>(`/groups/${groupId}/members/${userId}`, { method: 'DELETE' }),
+  },
+
   flows: {
     list: (params?: { limit?: number; offset?: number; search?: string; sort?: string }) => {
       const q = new URLSearchParams();
