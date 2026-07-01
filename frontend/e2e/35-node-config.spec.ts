@@ -24,48 +24,50 @@ test.describe('Node configuration modal', () => {
     }
   });
 
-  test('opens config modal when double-clicking a node', async ({ page }) => {
+  test('opens config modal when clicking a node', async ({ page }) => {
     const node = page.locator('.react-flow__node').first();
-    await node.dblclick();
+    await expect(node).toBeVisible({ timeout: 10000 });
+    await node.click();
 
-    // Modal or config panel should appear
-    const modal = page.locator('[role="dialog"], [class*="modal"], [class*="config"]').first();
+    const modal = page.locator('[role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
   });
 
   test('shows node type in config modal title', async ({ page }) => {
     const node = page.locator('.react-flow__node').first();
-    await node.dblclick();
+    await expect(node).toBeVisible({ timeout: 10000 });
+    await node.click();
 
     const modal = page.locator('[role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
+    // Modal should show a title or heading
+    await expect(modal.locator('h2, h3, h4').first()).toBeVisible();
   });
 
   test('closes config modal when clicking close button', async ({ page }) => {
     const node = page.locator('.react-flow__node').first();
-    await node.dblclick();
+    await expect(node).toBeVisible({ timeout: 10000 });
+    await node.click();
 
-    const closeBtn = page.locator('[role="dialog"] button[aria-label="close"], [role="dialog"] button:has(.icon-close), [role="dialog"] button:has-text("Close")').first();
-    if (await closeBtn.isVisible()) {
-      await closeBtn.click();
-    } else {
-      // Press Escape to close
-      await page.keyboard.press('Escape');
-    }
+    const modal = page.locator('[role="dialog"]').first();
+    await expect(modal).toBeVisible({ timeout: 5000 });
+
+    // Press Escape to close
+    await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
 
-    const modal = page.locator('[role="dialog"]');
     await expect(modal).not.toBeVisible();
   });
 
   test('output node shows field selection checkboxes', async ({ page }) => {
     const outputNode = page.locator('.react-flow__node-output').first();
-    await outputNode.dblclick();
+    await expect(outputNode).toBeVisible({ timeout: 10000 });
+    await outputNode.click();
 
     const modal = page.locator('[role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // Should show "Select Output Fields" or checkboxes
+    // Should show checkboxes in the config
     const checkboxes = modal.locator('input[type="checkbox"]');
     await expect(checkboxes.first()).toBeVisible({ timeout: 3000 });
   });

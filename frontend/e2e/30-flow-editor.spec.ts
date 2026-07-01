@@ -18,95 +18,115 @@ test.describe('Flow editor', () => {
   });
 
   test('canvas renders', async ({ page }) => {
-    // React Flow canvas should be present
-    const canvas = page.locator('.react-flow');
-    await expect(canvas).toBeVisible();
+    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15000 });
   });
 
-  test('node catalog is visible', async ({ page }) => {
-    await expect(page.getByText(/trigger/i)).toBeVisible();
+  test('add node button is visible', async ({ page }) => {
+    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15000 });
+    const addBtn = page.locator('#add-node-btn');
+    await expect(addBtn).toBeVisible({ timeout: 5000 });
   });
 
-  test('adds a trigger node by clicking catalog button', async ({ page }) => {
-    // Find the trigger node button in the catalog and click it
-    const triggerBtn = page.locator('[data-testid="catalog-trigger"], button:has-text("Trigger")').first();
-    await expect(triggerBtn).toBeVisible();
-    await triggerBtn.click();
+  test('opens node catalog when clicking + button', async ({ page }) => {
+    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15000 });
 
-    // A trigger node should appear on the canvas
-    const triggerNode = page.locator('.react-flow__node').first();
-    await expect(triggerNode).toBeVisible({ timeout: 5000 });
+    // Click the Add Node button
+    await page.locator('#add-node-btn').click();
+    await page.waitForTimeout(1000);
+
+    // Catalog panel should show "Add Node" heading
+    await expect(page.getByRole('heading', { name: 'Add Node' })).toBeVisible({ timeout: 5000 });
   });
 
-  test('adds an output node and connects it to trigger', async ({ page }) => {
-    // Add trigger
-    const triggerBtn = page.locator('[data-testid="catalog-trigger"], button:has-text("Trigger")').first();
-    await triggerBtn.click();
-    await page.waitForTimeout(500);
+  test('adds nodes from catalog', async ({ page }) => {
+    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15000 });
 
-    // Add output
-    const outputBtn = page.locator('[data-testid="catalog-output"], button:has-text("Output")').first();
-    await outputBtn.click();
-    await page.waitForTimeout(500);
+    // Open catalog and add Trigger
+    await page.locator('#add-node-btn').click();
+    await page.waitForTimeout(1000);
 
-    // Both nodes should be on the canvas
-    const nodes = page.locator('.react-flow__node');
-    await expect(nodes).toHaveCount(2, { timeout: 5000 });
-  });
-
-  test('selecting a node shows config panel or highlights it', async ({ page }) => {
-    // Add a trigger node first
-    const triggerBtn = page.locator('[data-testid="catalog-trigger"], button:has-text("Trigger")').first();
+    // Wait for catalog data to load
+    const triggerBtn = page.getByRole('button', { name: 'Trigger' });
+    await expect(triggerBtn).toBeVisible({ timeout: 10000 });
     await triggerBtn.click();
     await page.waitForTimeout(500);
 
-    // Click on the node
+    // A node should appear
+    await expect(page.locator('.react-flow__node')).toHaveCount(1, { timeout: 5000 });
+  });
+
+  test('adds multiple nodes', async ({ page }) => {
+    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15000 });
+
+    // Add Trigger
+    await page.locator('#add-node-btn').click();
+    await page.waitForTimeout(1000);
+    await page.getByRole('button', { name: 'Trigger' }).click();
+    await page.waitForTimeout(500);
+
+    // Add Output
+    await page.locator('#add-node-btn').click();
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: 'Output' }).click();
+    await page.waitForTimeout(500);
+
+    await expect(page.locator('.react-flow__node')).toHaveCount(2, { timeout: 5000 });
+  });
+
+  test('selects a node by clicking it', async ({ page }) => {
+    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15000 });
+
+    // Add a trigger node
+    await page.locator('#add-node-btn').click();
+    await page.waitForTimeout(1000);
+    await page.getByRole('button', { name: 'Trigger' }).click();
+    await page.waitForTimeout(500);
+
+    // Click the node
     const node = page.locator('.react-flow__node').first();
     await node.click();
+    await page.waitForTimeout(500);
 
-    // The node should have the 'selected' class
     await expect(node).toHaveClass(/selected/, { timeout: 3000 });
   });
 
-  test('delete selected node with keyboard', async ({ page }) => {
-    const triggerBtn = page.locator('[data-testid="catalog-trigger"], button:has-text("Trigger")').first();
-    await triggerBtn.click();
+  test('deletes a node with keyboard', async ({ page }) => {
+    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 15000 });
+
+    // Add a trigger node
+    await page.locator('#add-node-btn').click();
+    await page.waitForTimeout(1000);
+    await page.getByRole('button', { name: 'Trigger' }).click();
     await page.waitForTimeout(500);
 
-    // Select the node
-    const node = page.locator('.react-flow__node').first();
-    await node.click();
+    // Click the node to select it, then click the canvas to give it focus
+    await page.locator('.react-flow__node').first().click();
+    await page.locator('.react-flow__pane, .react-flow').first().click({ position: { x: 0, y: 0 } });
+    await page.waitForTimeout(300);
 
-    // Press Delete
-    await page.keyboard.press('Delete');
+    // Press Backspace (React Flow default delete key)
+    await page.keyboard.press('Backspace');
     await page.waitForTimeout(500);
 
-    // Canvas should be empty
-    const nodes = page.locator('.react-flow__node');
-    await expect(nodes).toHaveCount(0);
+    await expect(page.locator('.react-flow__node')).toHaveCount(0);
   });
 
-  test('deletes edge when clicking delete on edge label', async ({ page, request }) => {
-    // Create a flow with an existing edge
+  test('displays nodes loaded from a saved flow', async ({ page, request }) => {
     const fullFlow = await createFlow(request, {
-      name: 'Edge Delete Test',
+      name: 'Pre-populated Flow',
       nodes: [
-        { id: 't1', type: 'trigger', position: { x: 0, y: 0 }, data: { label: 'Trigger', type: 'trigger', config: {} } },
-        { id: 'o1', type: 'output', position: { x: 300, y: 0 }, data: { label: 'Output', type: 'output', config: {} } },
+        { id: 't1', type: 'trigger', position: { x: 0, y: 0 }, data: { label: 'My Trigger', type: 'trigger', config: {} } },
+        { id: 'o1', type: 'output', position: { x: 400, y: 0 }, data: { label: 'My Output', type: 'output', config: {} } },
       ],
-      edges: [
-        { id: 'e1', source: 't1', target: 'o1' },
-      ],
+      edges: [{ id: 'e1', source: 't1', target: 'o1' }],
     });
     const flow = await fullFlow.json();
-    flowId = flow.id;
-    await page.goto(`/flows/${flowId}/edit`);
+    await page.goto(`/flows/${flow.id}/edit`);
 
-    // Edge button on the edge label should exist
-    const edgeBtn = page.locator('.react-flow__edgeupdater, .react-flow__edge-textbg').first();
-    if (await edgeBtn.isVisible()) {
-      await edgeBtn.click();
-      await page.waitForTimeout(300);
-    }
+    await expect(page.locator('.react-flow__node')).toHaveCount(2, { timeout: 15000 });
+    await expect(page.getByText('My Trigger')).toBeVisible();
+    await expect(page.getByText('My Output')).toBeVisible();
+
+    await deleteFlow(request, flow.id);
   });
 });

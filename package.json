@@ -25,8 +25,9 @@
     "db:push": "cd backend && drizzle-kit push",
     "test:e2e:up": "docker compose -f docker-compose.e2e.yml up -d --wait",
     "test:e2e:down": "docker compose -f docker-compose.e2e.yml down -v --timeout 10",
+    "test:e2e:db-setup": "cd backend && DATABASE_URL=postgres://coreagents:coreagents@localhost:5432/coreagents npx drizzle-kit push --config drizzle.config.ts",
     "test:e2e:run": "playwright test --config frontend/playwright.config.ts",
-    "test:e2e": "npm run test:e2e:up && npm run test:e2e:run && npm run test:e2e:down"
+    "test:e2e": "npm run test:e2e:up && npm run test:e2e:db-setup && npm run test:e2e:run && npm run test:e2e:down"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

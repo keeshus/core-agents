@@ -30,7 +30,16 @@ export function NodeCatalog({ onAddNode, onClose, disabledTypes = [], disabledRe
     api.catalog.list().then(setCatalog).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="bg-surface/95 backdrop-blur border rounded-xl shadow-m3-4 p-3 space-y-3 w-56">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Add Node</h3>
+        </div>
+        <p className="text-xs text-on-surface-variant px-1">Loading...</p>
+      </div>
+    );
+  }
 
   const categories = ['input', 'processing', 'tools', 'output'] as const;
   const CATEGORY_LABELS: Record<string, string> = { input: 'Input', processing: 'Processing', tools: 'Tools', output: 'Output' };

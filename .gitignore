@@ -24,3 +24,5 @@ frontend/e2e/.auth/
 error
 ponto-key
 gemini-key.claude/
+frontend/test-results/
+frontend/e2e/.auth/

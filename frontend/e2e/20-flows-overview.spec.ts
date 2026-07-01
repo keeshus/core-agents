@@ -10,13 +10,15 @@ test.describe('Flows overview', () => {
     await expect(page.getByText('Flows')).toBeVisible();
   });
 
-  test('shows create flow button', async ({ page }) => {
-    const createBtn = page.getByRole('button', { name: /create/i });
-    await expect(createBtn).toBeVisible();
+  test('shows new flow button', async ({ page }) => {
+    await page.goto('/');
+    const createBtn = page.getByText('New Flow').first();
+    await expect(createBtn).toBeVisible({ timeout: 10000 });
   });
 
-  test('create flow navigates to editor', async ({ page }) => {
-    await page.getByRole('button', { name: /create/i }).click();
+  test('new flow button navigates to editor', async ({ page }) => {
+    await page.goto('/');
+    await page.getByText('New Flow').first().click();
     await expect(page).toHaveURL(/\/flows\/[^/]+\/edit/);
   });
 
@@ -80,10 +82,8 @@ test.describe('Flows overview', () => {
     const flow = await res.json();
     await page.goto('/');
 
-    // Manual trigger badge should not exist for default trigger
-    const webhookBadge = page.getByText(/webhook/i);
-    const chatBadge = page.getByText(/chat/i);
-    await expect(webhookBadge).not.toBeVisible();
-    await expect(chatBadge).not.toBeVisible();
+    // Manual trigger should not show webhook or chat badges
+    await expect(page.getByText(/webhook/i)).toHaveCount(0);
+    await expect(page.getByText(/chat/i)).toHaveCount(0);
   });
 });

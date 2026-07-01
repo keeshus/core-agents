@@ -6,6 +6,15 @@ const router = Router();
 
 const catalog: NodeCatalogEntry[] = [
   {
+    type: 'trigger',
+    label: 'Trigger',
+    category: 'input',
+    description: 'Start a flow manually, via chat, webhook, or on a schedule.',
+    defaultConfig: { triggerType: 'manual' },
+    inputs: 0,
+    outputs: 1,
+  },
+  {
     type: 'llm-agent',
     label: 'LLM Agent',
     category: 'processing',
@@ -74,6 +83,15 @@ const catalog: NodeCatalogEntry[] = [
     category: 'output',
     description: 'Final output of the flow. Returns selected field(s) as text or JSON.',
     defaultConfig: {},
+    inputs: 1,
+    outputs: 0,
+  },
+  {
+    type: 'stop',
+    label: 'Stop',
+    category: 'processing',
+    description: 'Terminate execution with a status. Can be used to end a flow branch early.',
+    defaultConfig: { status: 'completed', message: '' },
     inputs: 1,
     outputs: 0,
   },

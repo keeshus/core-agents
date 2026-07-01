@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Icon } from '@/components/ui/Icon';
 
 interface TextFieldProps {
@@ -39,6 +39,7 @@ export function TextField({
   const [focused, setFocused] = useState(false);
   const hasValue = value.length > 0;
   const float = focused || hasValue;
+  const inputId = useId();
 
   const Tag = multiline ? 'textarea' : 'input';
 
@@ -48,6 +49,7 @@ export function TextField({
         error ? 'border-error' : focused ? 'border-primary' : 'border-outline-variant'
       } ${multiline ? '' : 'flex items-center'}`}>
         <Tag
+          id={label ? inputId : undefined}
           ref={inputRef as any}
           type={multiline ? undefined : type}
           value={value}
@@ -65,7 +67,7 @@ export function TextField({
       </div>
 
       {label && (
-        <label className={`absolute left-4 transition-all pointer-events-none ${
+        <label htmlFor={inputId} className={`absolute left-4 transition-all pointer-events-none ${
           float
             ? 'text-[10px] top-1.5 text-on-surface-variant'
             : 'text-sm top-2 text-outline'

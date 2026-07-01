@@ -230,7 +230,18 @@ router.post('/register', asyncHandler(async (req, res) => {
   const [{ count }] = await db.select({ count: sql<number>`COUNT(*)` }).from(users);
   const isFirstUser = Number(count) === 0;
 
-  // Get role: admin for first user, viewer otherwise
+  // Seed default roles if table is empty (fresh DB from drizzle-kit push)
+  const [{ roleCount }] = await db.select({ roleCount: sql<number>`COUNT(*)` }).from(roles);
+  if (Number(roleCount) === 0) {
+    const defaultRoles = [
+      { name: 'admin', description: 'Full system access', permissions: ['admin','flow:create','flow:edit','flow:delete','endpoint:read','endpoint:write','mcp:read','mcp:write','embedding:read','embedding:write','store:read','store:write','document:write','knowledge:write','chat:create','execution:approve'], is_system: true },
+      { name: 'editor', description: 'Can create and edit flows', permissions: ['flow:create','flow:edit','execution:approve','endpoint:read','mcp:read','embedding:read','store:read','document:write','knowledge:write','chat:create'], is_system: true },
+      { name: 'approver', description: 'Can approve Human-in-the-Loop requests', permissions: ['execution:approve'], is_system: true },
+    ];
+    await db.insert(roles).values(defaultRoles);
+  }
+
+  // Get role: admin for first user, approver otherwise
   const [role] = await db.select().from(roles).where(eq(roles.name, isFirstUser ? 'admin' : 'approver'));
 
   // Create user

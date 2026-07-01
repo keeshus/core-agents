@@ -44,11 +44,11 @@ test.describe('Flow save and reload', () => {
     await expect(page.getByText('My Output')).toBeVisible();
   });
 
-  test('flow name and description appear in the editor UI', async ({ page }) => {
+  test('flow name appears in the editor header', async ({ page }) => {
     await page.goto(`/flows/${flowId}/edit`);
 
-    // Flow name should be visible somewhere in the editor header
-    await expect(page.getByText('Save Load Test')).toBeVisible();
+    // Flow name is in a TextField with label "Flow name"
+    await expect(page.locator('input[value="Save Load Test"]').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('reload preserves canvas state', async ({ page }) => {
