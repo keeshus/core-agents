@@ -559,7 +559,7 @@ router.post('/executions/:executionId/approve', requirePermission('execution:app
     };
   }
 
-  const executionContext = {
+  const executionContext: import('../../../worker/src/executor/engine.js').ExecutionContext = {
     currentExecutionId: exec.id,
     getEndpoint: async (endpointId: string) => {
       const [ep] = await db.select().from(llmEndpoints).where(eq(llmEndpoints.id, endpointId));
@@ -580,6 +580,48 @@ router.post('/executions/:executionId/approve', requirePermission('execution:app
       const [vs] = await db.select().from(vectorStores).where(eq(vectorStores.id, storeId));
       if (!vs) return null;
       return { name: vs.name, url: vs.url, apiKey: vs.api_key };
+    },
+    getFlow: async (flowId: string, ancestry?: string[]) => {
+      const [flow] = await db.select().from(flows).where(eq(flows.id, flowId));
+      if (!flow) return null;
+      if (ancestry?.includes(flowId)) {
+        throw new Error(`Circular subflow reference detected: ${ancestry.join(' -> ')} -> ${flow.name}`);
+      }
+      return {
+        id: flow.id,
+        name: flow.name,
+        description: flow.description || '',
+        nodes: flow.nodes as any,
+        edges: flow.edges as any,
+        version: flow.version,
+        createdAt: flow.created_at?.toISOString() || '',
+        updatedAt: flow.updated_at?.toISOString() || '',
+      };
+    },
+    onSubExecution: async (data) => {
+      const [subExec] = await db.insert(executions).values({
+        flow_id: data.subflowId,
+        parent_execution_id: data.parentExecutionId,
+        subflow_node_id: data.subflowNodeId,
+        subflow_depth: data.depth,
+        status: 'running',
+        input: data.input,
+        started_at: new Date(),
+      }).returning();
+      return subExec.id;
+    },
+    completeSubExecution: async (subExecutionId, output, status, error) => {
+      await db.update(executions).set({
+        status,
+        output: output as any,
+        error: error || null,
+        completed_at: new Date(),
+      }).where(eq(executions.id, subExecutionId));
+    },
+    searchSimilar: async (collectionName, queryEmbedding, topK, minScore) => {
+      const store = getStore('qdrant') || getStore('pgvector') || listStores().length > 0 ? getStore(listStores()[0]) : undefined;
+      if (!store) return [];
+      return store.search(collectionName, queryEmbedding, topK, minScore);
     },
     flowNodes: flowDef.nodes as any,
     flowEdges: flowDef.edges as any,

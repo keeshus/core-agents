@@ -9,7 +9,6 @@ const NODE_ICONS: Record<string, string> = {
   code: 'code',
   parallel: 'view_column',
   hitl: 'schedule',
-  stop: 'stop',
   output: 'output',
   subflow: 'account_tree',
 };

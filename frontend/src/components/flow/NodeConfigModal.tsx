@@ -23,6 +23,7 @@ const NODE_LABELS: Record<string, string> = {
   output: 'Output',
   parallel: 'Parallel',
   hitl: 'Human in the Loop',
+  subflow: 'Subflow',
 };
 
 interface NodeConfigModalProps {

@@ -13,7 +13,6 @@ export const NODE_TYPES = [
   'parallel',
   'hitl',
   'subflow',
-  'stop',
 ] as const;
 
 export type NodeType = (typeof NODE_TYPES)[number];

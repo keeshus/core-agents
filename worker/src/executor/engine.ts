@@ -1191,7 +1191,7 @@ export class SubFlowExecutor {
       currentExecutionId: subExecutionId || context.currentExecutionId,
       currentDepth: this.depth,
       getFlow: context.getFlow
-        ? (flowId: string, ancestry?: string[]) => context.getFlow!(flowId, [...this.ancestorFlowIds, flow.id])
+        ? (flowId: string, ancestry?: string[]) => context.getFlow!(flowId, [...(ancestry || this.ancestorFlowIds), flow.id])
         : undefined,
     };
 

@@ -24,7 +24,6 @@ const catalog: CatalogEntry[] = [
   { type: 'parallel', label: 'Parallel', category: 'processing', description: '', defaultConfig: {}, inputs: 1, outputs: 1 },
   { type: 'subflow', label: 'Subflow', category: 'processing', description: '', defaultConfig: { subflowId: '', inputMapping: {} }, inputs: 1, outputs: 1 },
   { type: 'hitl', label: 'Human in the Loop', category: 'processing', description: '', defaultConfig: {}, inputs: 1, outputs: 1 },
-  { type: 'stop', label: 'Stop', category: 'processing', description: '', defaultConfig: {}, inputs: 1, outputs: 0 },
   { type: 'output', label: 'Output', category: 'output', description: '', defaultConfig: {}, inputs: 1, outputs: 0 },
 ];
 
@@ -40,7 +39,6 @@ describe('Node Catalog', () => {
     expect(types).toContain('parallel');
     expect(types).toContain('subflow');
     expect(types).toContain('hitl');
-    expect(types).toContain('stop');
     expect(types).toContain('output');
   });
 
@@ -52,14 +50,6 @@ describe('Node Catalog', () => {
     expect(subflow!.outputs).toBe(1);
     expect(subflow!.defaultConfig).toHaveProperty('subflowId', '');
     expect(subflow!.defaultConfig).toHaveProperty('inputMapping', {});
-  });
-
-  it('includes stop entry with correct inputs/outputs', () => {
-    const stop = catalog.find(e => e.type === 'stop');
-    expect(stop).toBeDefined();
-    expect(stop!.inputs).toBe(1);
-    expect(stop!.outputs).toBe(0);
-    expect(stop!.category).toBe('processing');
   });
 
   it('has valid categories for all entries', () => {

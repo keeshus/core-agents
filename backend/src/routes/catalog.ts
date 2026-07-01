@@ -87,15 +87,6 @@ const catalog: NodeCatalogEntry[] = [
     outputs: 1,
   },
   {
-    type: 'stop',
-    label: 'Stop',
-    category: 'processing',
-    description: 'Terminate execution with a status. Can be used to end a flow branch early.',
-    defaultConfig: { status: 'completed', message: '' },
-    inputs: 1,
-    outputs: 0,
-  },
-  {
     type: 'output',
     label: 'Output',
     category: 'output',

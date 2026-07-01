@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 export function SubflowNode(props: NodeProps) {
   const config = props.data?.config as Record<string, any> | undefined;
   const subflowId = config?.subflowId || '';
+  const subflowName = config?.subflowName || '';
   const mappedCount = Object.keys(config?.inputMapping || {}).length;
 
   return (
@@ -21,7 +22,7 @@ export function SubflowNode(props: NodeProps) {
       <div className="flex items-center gap-2 mb-1">
         <Icon name="account_tree" className="text-sm text-secondary" />
         {subflowId ? (
-          <span className="text-xs font-mono text-secondary truncate">{subflowId.slice(0, 10)}</span>
+          <span className="text-xs text-secondary truncate font-medium">{subflowName}</span>
         ) : (
           <span className="text-xs italic text-on-surface-variant">Not configured</span>
         )}

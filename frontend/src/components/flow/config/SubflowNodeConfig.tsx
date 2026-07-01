@@ -81,7 +81,7 @@ export function SubflowNodeConfig({ config, onChange, nodeId, nodes, edges }: Su
                 <button
                   key={sf.id}
                   type="button"
-                  onClick={() => onChange({ subflowId: sf.id, inputMapping: {} })}
+                  onClick={() => onChange({ subflowId: sf.id, subflowName: sf.name, inputMapping: {} })}
                   className={`w-full text-left p-2 rounded border text-xs transition-colors ${
                     isSelected
                       ? 'bg-secondary-container border-secondary text-on-secondary-container'
