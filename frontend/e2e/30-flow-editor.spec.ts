@@ -55,18 +55,14 @@ test.describe('Flow editor', () => {
 
   // Keyboard delete works in the real app but the Playwright test runner
   // doesn't reliably dispatch keyboard events to the ReactFlow pane.
+  // Deleting a node via keyboard requires the ReactFlow pane to have focus.
+  // Playwright's keyboard.press doesn't reliably reach the pane. This is a
+  // browser automation limitation, not an app bug.
   test.fixme('deletes a node with keyboard', async ({ page }) => {
     await page.getByTestId('add-node-btn').click();
     await page.getByTestId('catalog-trigger').click();
-    const node = page.locator('.react-flow__node').first();
-    await node.click();
-    await expect(node).toHaveClass(/selected/, { timeout: 3000 });
-
-    // ReactFlow handles delete on its pane. Click the canvas wrapper
-    // (not the pane directly) to give it focus without deselecting.
-    await page.getByTestId('flow-canvas').focus();
+    await page.locator('.react-flow__node').first().click();
     await page.keyboard.press('Delete');
-
     await expect(page.locator('.react-flow__node')).toHaveCount(0, { timeout: 5000 });
   });
 
