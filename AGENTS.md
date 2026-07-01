@@ -64,6 +64,7 @@
 
 ## E2E Tests
 - **ALWAYS run E2E tests before committing and pushing any changes** — they catch regressions in both frontend and backend.
+- **ALWAYS run and update unit tests before committing and pushing** — run `npm test` across all workspaces (shared, worker, backend, frontend) and update any tests that break due to your changes.
 - Workflow:
   ```bash
   # Start Docker stack (infra + backend + frontend + worker + mock-llm)

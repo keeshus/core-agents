@@ -267,7 +267,6 @@ core-agents/
 | 🧰 **MCP Tool** | Tools | Call a tool from a configured MCP server |
 | 📄 **Retriever** | Tools | Query a vector store for relevant documents |
 | 👤 **HITL** | Processing | Pause for human approval |
-| 🛑 **Stop** | Processing | Terminate execution with a status |
 | 📤 **Output** | Output | Return the final result |
 
 ## 📄 License
