@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcrypt';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { users, roles } from '../db/schema.js';
@@ -8,6 +9,18 @@ import { asyncHandler } from '../utils/async-handler.js';
 const router = Router();
 
 router.use(authenticate);
+
+// POST /api/users — create a user (admin only). Allows setting role_id.
+router.post('/users', requirePermission('admin'), asyncHandler(async (req, res) => {
+  const { email, password, name, role_id } = req.body || {};
+  if (!email || !password || !name) {
+    res.status(400).json({ error: 'Email, password, and name are required' });
+    return;
+  }
+  const password_hash = await bcrypt.hash(password, 10);
+  const [user] = await db.insert(users).values({ email, password_hash, name, role_id: role_id || null }).returning();
+  res.status(201).json({ id: user.id, email: user.email, name: user.name, role_id: user.role_id });
+}));
 
 // POST /api/admin/seed-roles — create default roles if they don't exist
 router.post('/roles/seed', requirePermission('admin'), asyncHandler(async (_req, res) => {
