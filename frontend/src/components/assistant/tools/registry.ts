@@ -726,7 +726,7 @@ const navigateTo: AssistantTool = {
   inputSchema: {
     type: 'object',
     properties: {
-      page: { type: 'string', enum: ['flows', 'approvals', 'settings', 'settings/endpoints', 'settings/mcp-servers', 'settings/knowledge', 'settings/users', 'profile'] },
+      page: { type: 'string', enum: ['flows', 'approvals', 'settings', 'settings/endpoints', 'settings/mcp-servers', 'settings/knowledge', 'settings/users', 'settings/secrets', 'settings/secret-vaults', 'profile'] },
       flowId: { type: 'string', description: 'Flow ID to open directly in the editor (e.g. "f30fa521-...")' },
       reason: { type: 'string', description: 'What the user wants to do on the target page (e.g. "add an MCP server", "edit endpoint settings")' },
     },
@@ -788,6 +788,138 @@ const deleteExecution: AssistantTool = {
   async execute({ executionId }) { return apiFetch(`/executions/${executionId}`, { method: 'DELETE' }); },
 };
 
+// ── Secrets CRUD ─────────────────────────────────────────────────────────────────
+
+const listSecrets: AssistantTool = {
+  name: 'list_secrets',
+  description: 'List all secrets with optional filtering by scope, scopeId, or search term.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      scope: { type: 'string', description: 'Filter by scope (e.g. "endpoint", "global")' },
+      scopeId: { type: 'string', description: 'Filter by scope-specific ID' },
+      search: { type: 'string', description: 'Search term to filter secrets by name' },
+    },
+  },
+  async execute({ scope, scopeId, search }) {
+    const params = new URLSearchParams();
+    if (scope) params.set('scope', scope as string);
+    if (scopeId) params.set('scopeId', scopeId as string);
+    if (search) params.set('search', search as string);
+    const qs = params.toString();
+    return apiFetch(`/secrets${qs ? `?${qs}` : ''}`);
+  },
+};
+
+const createSecret: AssistantTool = {
+  name: 'create_secret',
+  description: 'Create a new secret. Requires name, value, scope, and scopeId.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      value: { type: 'string', description: 'The secret value to store' },
+      scope: { type: 'string' },
+      scopeId: { type: 'string' },
+    },
+    required: ['name', 'value', 'scope', 'scopeId'],
+  },
+  async execute({ name, value, scope, scopeId }) {
+    return apiFetch('/secrets', { method: 'POST', body: JSON.stringify({ name, value, scope, scopeId }) });
+  },
+};
+
+const updateSecret: AssistantTool = {
+  name: 'update_secret',
+  description: 'Update an existing secret value by ID.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Secret ID' },
+      value: { type: 'string', description: 'New secret value' },
+    },
+    required: ['id', 'value'],
+  },
+  async execute({ id, value }) {
+    return apiFetch(`/secrets/${id}`, { method: 'PUT', body: JSON.stringify({ value }) });
+  },
+};
+
+const deleteSecret: AssistantTool = {
+  name: 'delete_secret',
+  description: 'Delete a secret by ID.',
+  inputSchema: {
+    type: 'object',
+    properties: { id: { type: 'string', description: 'Secret ID' } },
+    required: ['id'],
+  },
+  async execute({ id }) { return apiFetch(`/secrets/${id}`, { method: 'DELETE' }); },
+};
+
+const rotateKey: AssistantTool = {
+  name: 'rotate_key',
+  description: 'Rotate the root encryption key used to encrypt secrets at rest.',
+  inputSchema: { type: 'object', properties: {} },
+  async execute() { return apiFetch('/secrets/rotate-key', { method: 'POST' }); },
+};
+
+// ── Secret Vaults CRUD ─────────────────────────────────────────────────────────
+
+const listVaults: AssistantTool = {
+  name: 'list_vaults',
+  description: 'List all configured secret vaults (external vault providers).',
+  inputSchema: { type: 'object', properties: {} },
+  async execute() { return apiFetch('/secret-vaults'); },
+};
+
+const testVaultConnection: AssistantTool = {
+  name: 'test_vault_connection',
+  description: 'Test the connection to a secret vault by its ID.',
+  inputSchema: {
+    type: 'object',
+    properties: { vaultId: { type: 'string', description: 'Vault ID to test' } },
+    required: ['vaultId'],
+  },
+  async execute({ vaultId }) { return apiFetch(`/secret-vaults/${vaultId}/test`, { method: 'POST' }); },
+};
+
+// ── Group vault config ──────────────────────────────────────────────────────────
+
+const listGroups: AssistantTool = {
+  name: 'list_groups',
+  description: 'List all groups (teams) in the system.',
+  inputSchema: { type: 'object', properties: {} },
+  async execute() { return apiFetch('/groups'); },
+};
+
+const getGroupVault: AssistantTool = {
+  name: 'get_group_vault',
+  description: 'Get the vault configuration for a specific group.',
+  inputSchema: {
+    type: 'object',
+    properties: { groupId: { type: 'string', description: 'Group ID' } },
+    required: ['groupId'],
+  },
+  async execute({ groupId }) { return apiFetch(`/group-vault-config/${groupId}`); },
+};
+
+const setGroupVault: AssistantTool = {
+  name: 'set_group_vault',
+  description: 'Set the vault configuration for a group. Optionally enable/disable vault access.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      groupId: { type: 'string', description: 'Group ID' },
+      vaultId: { type: 'string', description: 'Vault ID to associate with the group' },
+      enabled: { type: 'boolean', description: 'Whether vault access is enabled for this group' },
+    },
+    required: ['groupId', 'vaultId'],
+  },
+  async execute({ groupId, vaultId, enabled }) {
+    return apiFetch(`/group-vault-config/${groupId}`, { method: 'PUT', body: JSON.stringify({ vaultId, enabled }) });
+  },
+};
+
 // ── Tool groups ──────────────────────────────────────────────────────────────────
 
 export const toolGroups: Record<string, AssistantTool[]> = {
@@ -802,6 +934,9 @@ export const toolGroups: Record<string, AssistantTool[]> = {
   'flows-list': [listFlows, searchFlows],
   'approvals': [getPendingApprovals, approveExecution, rejectExecution],
   'executions': [listExecutions, getExecutionDetails, deleteExecution],
+  'secret-crud': [listSecrets, createSecret, updateSecret, deleteSecret, rotateKey],
+  'vault-crud': [listVaults, testVaultConnection],
+  'group-vault-config': [listGroups, getGroupVault, setGroupVault],
   'chat': [],
   'read-resources': [listEndpoints, listMcpServers, listEmbeddingProviders, listVectorStores],
 };
@@ -816,6 +951,8 @@ export function getToolGroupNames(pageKey: string, nodeType?: string): string[] 
   else if (pageKey === 'settings:mcp-servers') groups.push('mcp-crud');
   else if (pageKey === 'settings:knowledge') groups.push('embedding-crud', 'store-crud');
   else if (pageKey === 'settings:users') groups.push('user-crud');
+  else if (pageKey === 'settings:secrets') groups.push('secret-crud', 'group-vault-config');
+  else if (pageKey === 'settings:secret-vaults') groups.push('vault-crud');
   else if (pageKey === 'approvals') groups.push('approvals');
   else if (pageKey?.startsWith('executions:')) groups.push('executions');
   else if (pageKey === 'profile') groups.push('profile-crud');

@@ -50,6 +50,7 @@ export const BUILT_IN_TOOLS: BuiltInToolInfo[] = [
   { name: 'uuid', description: 'Generate a version 4 UUID' },
   { name: 'log', description: 'Write a log entry (info/warn/error)' },
   { name: 'fetch', description: 'Perform an HTTP GET request' },
+  { name: 'secret_get', description: 'Retrieve a secret by name. Supports local secrets (core) and CyberArk secrets (cyberark). The value is injected into downstream nodes but never returned in this response.' },
 ];
 
 // ── Tool input schemas (used by engine.ts for auto-injection) ─────────────────
@@ -120,6 +121,14 @@ const TOOL_SCHEMAS: Record<string, { type: string; properties: Record<string, un
       url: { type: 'string', description: 'The URL to fetch' },
     },
     required: ['url'],
+  },
+  'secret_get': {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Secret name (for local/core) or CyberArk path (for cyberark)' },
+      cyberark: { type: 'boolean', description: 'Set to true to query CyberArk vault instead of local secrets', default: false },
+    },
+    required: ['name'],
   },
 };
 

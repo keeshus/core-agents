@@ -67,6 +67,9 @@ export interface ExecutionContext {
   completeSubExecution?: (subExecutionId: string, output: Record<string, unknown>, status: 'completed' | 'failed', error?: string) => Promise<void>;
   currentExecutionId?: string;
   currentDepth?: number;
+  getSecret?: (secretName: string, options?: { scope?: 'app' | 'group' | 'flow' }) => Promise<string | null>;
+  getCyberArkSecret?: (secretPath: string) => Promise<string | null>;
+  setSecret?: (name: string, value: string) => void;
 }
 
 export class FlowExecutor {
@@ -666,6 +669,7 @@ export class FlowExecutor {
           { name: 'uuid', description: 'Generate a UUID', input_schema: { type: 'object', properties: {} } },
           { name: 'log', description: 'Write a log entry (info/warn/error)', input_schema: { type: 'object', properties: { level: { type: 'string' }, message: { type: 'string' } }, required: ['message'] } },
           { name: 'fetch', description: 'Perform an HTTP GET request', input_schema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } },
+          { name: 'secret_get', description: 'Retrieve a secret by name. Supports local secrets (core) and CyberArk (cyberark).', input_schema: { type: 'object', properties: { name: { type: 'string' }, cyberark: { type: 'boolean' } }, required: ['name'] } },
         );
 
         // Token streaming callback
@@ -685,7 +689,7 @@ export class FlowExecutor {
         let finalContent = '';
 
         // Resolve {{input.path.to.field}} template variables in system prompt
-        let resolvedPrompt = resolveTemplate(config.systemPrompt || '', input);
+        let resolvedPrompt = await resolveTemplate(config.systemPrompt || '', input, context);
 
         // Inject structured output tool when JSON output is selected
         const allTools = [...(toolDefs || [])];
@@ -782,11 +786,37 @@ export class FlowExecutor {
 
               // Handle built-in utility tools (auto-injected, no MCP node required)
               if (toolResult === 'Tool not found') {
-                try {
-                  const { callBuiltInTool } = await import('../tools/built-in.js');
-                  toolResult = await callBuiltInTool(tc.name, { ...tc.input, _runId: this.currentRunId });
-                } catch (err) {
-                  toolResult = `Error: ${err instanceof Error ? err.message : String(err)}`;
+                // Handle secret_get specially — needs ExecutionContext
+                if (tc.name === 'secret_get') {
+                  const name = tc.input?.name as string | undefined;
+                  const useCyberArk = tc.input?.cyberark === true;
+                  if (name) {
+                    try {
+                      let value: string | null = null;
+                      if (useCyberArk && context?.getCyberArkSecret) {
+                        value = await context.getCyberArkSecret(name);
+                      } else if (context?.getSecret) {
+                        value = await context.getSecret(name);
+                      }
+                      if (value !== null && value !== undefined) {
+                        context?.setSecret?.(name, value);
+                        toolResult = JSON.stringify({ success: true, name });
+                      } else {
+                        toolResult = JSON.stringify({ success: false, error: 'Secret not found' });
+                      }
+                    } catch (err) {
+                      toolResult = JSON.stringify({ success: false, error: (err as Error).message });
+                    }
+                  } else {
+                    toolResult = JSON.stringify({ success: false, error: 'Secret name is required' });
+                  }
+                } else {
+                  try {
+                    const { callBuiltInTool } = await import('../tools/built-in.js');
+                    toolResult = await callBuiltInTool(tc.name, { ...tc.input, _runId: this.currentRunId });
+                  } catch (err) {
+                    toolResult = `Error: ${err instanceof Error ? err.message : String(err)}`;
+                  }
                 }
               }
 
@@ -912,7 +942,7 @@ export class FlowExecutor {
         try {
           if (rawCondition && rawCondition.trim()) {
             // Resolve {{input.var}} templates to actual values
-            const resolved = resolveTemplate(rawCondition, input);
+            const resolved = await resolveTemplate(rawCondition, input, context);
             // Try evaluating as JS expression first
             let result: unknown;
             try {
@@ -1017,7 +1047,7 @@ export class FlowExecutor {
         const subflowInput: Record<string, unknown> = {};
         for (const [paramName, template] of Object.entries(inputMapping)) {
           if (template && template.trim()) {
-            subflowInput[paramName] = resolveTemplate(template, input);
+            subflowInput[paramName] = await resolveTemplate(template, input, context);
           }
         }
 
@@ -1066,7 +1096,7 @@ export class FlowExecutor {
         }
         // First run: pause for human input with resolved prompt
         const hitlCfg = (nodeData as any).config || {};
-        const resolvedPrompt = resolveTemplate(hitlCfg.prompt || '', input);
+        const resolvedPrompt = await resolveTemplate(hitlCfg.prompt || '', input, context);
         const buttons = hitlCfg.buttons || [{ label: 'Approve', value: 'approved', icon: 'check_circle' }, { label: 'Reject', value: 'rejected', icon: 'cancel' }];
         const assignmentType = hitlCfg.assignmentType;
         const assignees = hitlCfg.assignees;
@@ -1252,16 +1282,23 @@ export class SubFlowExecutor {
   }
 }
 
-// Resolve {{input.path.to.field}} template variables in system prompts.
-// Looks up dot-notation paths in the input data.
-function resolveTemplate(template: string, data: unknown): string {
-  return template.replace(/\{\{input\.([^}]+)\}\}/g, (match, path: string) => {
+function resolveTemplateSync(template: string, data: unknown, lookupSecret?: (name: string, scope?: 'app' | 'group' | 'flow') => string | null): string {
+  let result = template;
+
+  result = result.replace(/\{\{secrets\.core\.(?:group:|app:)?([^}]+)\}\}/g, (match, name: string) => {
+    const scope = match.includes('core.group:') ? 'group' as const : match.includes('core.app:') ? 'app' as const : undefined;
+    const value = lookupSecret?.(name.trim(), scope);
+    if (value !== null && value !== undefined) return value;
+    console.warn(`Template variable ${match} could not be resolved`);
+    return '';
+  });
+
+  result = result.replace(/\{\{input\.([^}]+)\}\}/g, (match, path: string) => {
     const parts = path.trim().split('.');
     let current: unknown = data;
     for (const part of parts) {
       const bracketMatch = part.match(/^(\w+)\[(\d+)\]$/);
       if (bracketMatch) {
-        // Bracket indexing: items[0] → items then index 0
         const key = bracketMatch[1];
         const idx = parseInt(bracketMatch[2]);
         if (current && typeof current === 'object' && key in (current as Record<string, unknown>)) {
@@ -1279,7 +1316,6 @@ function resolveTemplate(template: string, data: unknown): string {
       } else if (current && typeof current === 'object' && part in (current as Record<string, unknown>)) {
         current = (current as Record<string, unknown>)[part];
       } else {
-        // Try slugified version of the part (labels are stored under slugified keys)
         const slugPart = slugify(part);
         if (current && typeof current === 'object' && slugPart in (current as Record<string, unknown>)) {
           current = (current as Record<string, unknown>)[slugPart];
@@ -1292,4 +1328,50 @@ function resolveTemplate(template: string, data: unknown): string {
     if (typeof current === 'object') return JSON.stringify(current);
     return String(current);
   });
+
+  return result;
+}
+
+// Full async template resolution including CyberArk secrets.
+async function resolveTemplate(template: string, data: unknown, context?: ExecutionContext): Promise<string> {
+  // First resolve core secrets (async getSecret calls)
+  const secretsMap = new Map<string, string>();
+  const secretRegex = /\{\{secrets\.core\.(?:group:|app:|flow:)?([^}]+)\}\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = secretRegex.exec(template)) !== null) {
+    const fullMatch = match[0];
+    const name = match[1].trim();
+    const scope = fullMatch.includes('core.group:') ? 'group' as const : fullMatch.includes('core.app:') ? 'app' as const : fullMatch.includes('core.flow:') ? 'flow' as const : undefined;
+    const mapKey = `${scope || 'default'}:${name}`;
+    if (!secretsMap.has(mapKey)) {
+      try {
+        const value = context?.getSecret ? await context.getSecret(name, scope ? { scope } : undefined) : null;
+        if (value !== null) secretsMap.set(mapKey, value);
+      } catch { /* secret not found */ }
+    }
+  }
+  const syncLookup = (name: string, _scope?: 'app' | 'group' | 'flow') => secretsMap.get(`${_scope || 'default'}:${name}`) ?? null;
+  let result = resolveTemplateSync(template, data, syncLookup);
+
+  // Resolve {{secrets.cyberark.PATH}} — live CyberArk query (async)
+  const cyberarkMatches = result.match(/\{\{secrets\.cyberark\.([^}]+)\}\}/g);
+  if (cyberarkMatches && context?.getCyberArkSecret) {
+    for (const fullMatch of cyberarkMatches) {
+      const path = fullMatch.replace(/\{\{secrets\.cyberark\./, '').replace(/\}\}$/, '');
+      try {
+        const value = await context.getCyberArkSecret(path.trim());
+        if (value !== null && value !== undefined) {
+          result = result.replace(fullMatch, value);
+        } else {
+          console.warn(`CyberArk secret ${fullMatch} could not be resolved`);
+          result = result.replace(fullMatch, '');
+        }
+      } catch (err) {
+        console.warn(`CyberArk secret ${fullMatch} error: ${(err as Error).message}`);
+        result = result.replace(fullMatch, '');
+      }
+    }
+  }
+
+  return result;
 }

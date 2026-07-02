@@ -54,6 +54,7 @@ export const groupMembers = pgTable('group_members', {
   id: uuid('id').primaryKey().defaultRandom(),
   group_id: uuid('group_id').notNull().references(() => groups.id),
   user_id: uuid('user_id').notNull().references(() => users.id),
+  role: text('role').notNull().default('member'),
   created_at: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -254,6 +255,66 @@ export const users = pgTable('users', {
   last_login_at: timestamp('last_login_at'),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const secrets = pgTable('secrets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  scope: text('scope').notNull().default('app'),
+  scope_id: uuid('scope_id'),
+  encrypted_value: text('encrypted_value').notNull(),
+  encryption_iv: text('encryption_iv').notNull(),
+  encryption_tag: text('encryption_tag').notNull(),
+  key_version: integer('key_version').notNull().default(1),
+  created_by: uuid('created_by').references(() => users.id),
+  expires_at: timestamp('expires_at'),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  updated_at: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const encryptionKeyVersions = pgTable('encryption_key_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  version: integer('version').notNull().unique(),
+  key_material_encrypted: text('key_material_encrypted').notNull(),
+  key_material_iv: text('key_material_iv').notNull(),
+  key_material_tag: text('key_material_tag').notNull(),
+  is_current: boolean('is_current').notNull().default(false),
+  activated_at: timestamp('activated_at'),
+  deactivated_at: timestamp('deactivated_at'),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const secretVaults = pgTable('secret_vaults', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  vault_type: text('vault_type').notNull().default('cyberark'),
+  base_url: text('base_url').notNull(),
+  auth_type: text('auth_type').notNull().default('client_credentials'),
+  client_id: text('client_id').notNull(),
+  client_secret: text('client_secret').notNull(),
+  ca_cert: text('ca_cert'),
+  is_connected: boolean('is_connected').notNull().default(false),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  updated_at: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const groupVaultConfig = pgTable('group_vault_config', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id').notNull().unique().references(() => groups.id),
+  vault_id: uuid('vault_id').notNull().references(() => secretVaults.id),
+  enabled: boolean('enabled').notNull().default(true),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  updated_at: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const secretAccessLog = pgTable('secret_access_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  secret_id: uuid('secret_id'),
+  action: text('action').notNull(),
+  user_id: uuid('user_id').references(() => users.id),
+  ip_address: text('ip_address'),
+  metadata: jsonb('metadata').default('{}'),
+  created_at: timestamp('created_at').notNull().defaultNow(),
 });
 
 export const userAssignments = pgTable('user_assignments', {

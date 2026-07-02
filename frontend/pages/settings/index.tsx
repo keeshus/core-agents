@@ -10,6 +10,12 @@ export default function SettingsIndex() {
   useAssistantContext({ pageKey: 'settings', description: 'Settings overview' });
   const sections: { href: string; icon: string; title: string; description: string }[] = [
     {
+      href: '/settings/secrets',
+      icon: 'key',
+      title: 'Secrets',
+      description: 'Manage app-wide, group, and flow-scoped secrets for secure credential storage',
+    },
+    {
       href: '/settings/endpoints',
       icon: 'memory',
       title: 'LLM Endpoints',
@@ -27,6 +33,12 @@ export default function SettingsIndex() {
       title: 'Knowledge Bases',
       description: 'Upload documents, manage collections, and configure RAG retrieval',
     },
+    ...(can('admin') ? [{
+      href: '/settings/secret-vaults',
+      icon: 'lock',
+      title: 'Secret Vaults',
+      description: 'Manage external secret vault connections for credential lookup',
+    }] : []),
     ...(can('admin') ? [{
       href: '/settings/users',
       icon: 'shield',

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { BUILT_IN_TOOLS } from '../tools/built-in.js';
 
 describe('BUILT_IN_TOOLS', () => {
-  it('exports exactly 11 tools', () => {
-    expect(BUILT_IN_TOOLS).toHaveLength(11);
+  it('exports exactly 12 tools', () => {
+    expect(BUILT_IN_TOOLS).toHaveLength(12);
   });
 
   it('each tool has name and description properties', () => {
@@ -33,14 +33,20 @@ describe('BUILT_IN_TOOLS', () => {
     expect(names).toEqual(['file_list', 'file_read', 'file_write']);
   });
 
-  it('contains all expected utility tools (now, uuid, log, fetch)', () => {
+  it('contains all expected utility tools (now, uuid, log, fetch, secret_get)', () => {
     const utilityTools = BUILT_IN_TOOLS.filter(
       t => !t.name.startsWith('store_') && !t.name.startsWith('file_'),
     );
-    expect(utilityTools).toHaveLength(4);
+    expect(utilityTools).toHaveLength(5);
 
     const names = utilityTools.map(t => t.name).sort();
-    expect(names).toEqual(['fetch', 'log', 'now', 'uuid']);
+    expect(names).toEqual(['fetch', 'log', 'now', 'secret_get', 'uuid']);
+  });
+
+  it('secret_get tool has expected properties', () => {
+    const tool = BUILT_IN_TOOLS.find(t => t.name === 'secret_get')!;
+    expect(tool).toBeDefined();
+    expect(tool.description).toMatch(/secret/i);
   });
 
   describe('utility tool schemas (as defined in engine.ts auto-injection)', () => {

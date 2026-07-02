@@ -22,6 +22,7 @@ interface GroupMember {
   userId: string;
   name: string;
   email: string;
+  role?: string;
 }
 
 interface User {
@@ -151,6 +152,17 @@ export default function GroupsSettingsPage() {
   const handleRemoveMember = async (groupId: string, userId: string) => {
     try {
       await fetch(`${API_URL}/groups/${groupId}/members/${userId}`, { method: 'DELETE', credentials: 'include' });
+      await loadMembers(groupId);
+    } catch {}
+  };
+
+  const handleUpdateMemberRole = async (groupId: string, userId: string, role: string) => {
+    try {
+      await fetch(`${API_URL}/admin/groups/${groupId}/members/${userId}/role`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role }),
+      });
       await loadMembers(groupId);
     } catch {}
   };
@@ -286,16 +298,35 @@ export default function GroupsSettingsPage() {
                         <div className="space-y-1">
                           {members.map(m => (
                             <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-surface-container-high">
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex items-center gap-2">
                                 <span className="text-sm text-on-surface">{m.name}</span>
-                                <span className="text-xs text-on-surface-variant ml-2">{m.email}</span>
+                                <span className="text-xs text-on-surface-variant">{m.email}</span>
+                                {m.role === 'admin' && (
+                                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-secondary-container text-secondary">Admin</span>
+                                )}
                               </div>
                               {isLocal && (
-                                <Tooltip content="Remove member">
-                                  <button onClick={() => handleRemoveMember(g.id, m.userId)} className="p-1 text-on-surface-variant hover:text-error rounded transition-colors shrink-0">
-                                    <Icon name="close" className="text-xs" />
-                                  </button>
-                                </Tooltip>
+                                <div className="flex items-center gap-1">
+                                  {m.role !== 'admin' && (
+                                    <Tooltip content="Make group admin">
+                                      <button onClick={() => handleUpdateMemberRole(g.id, m.userId, 'admin')} className="p-1 text-on-surface-variant hover:text-primary rounded transition-colors shrink-0">
+                                        <Icon name="admin_panel_settings" className="text-xs" />
+                                      </button>
+                                    </Tooltip>
+                                  )}
+                                  {m.role === 'admin' && (
+                                    <Tooltip content="Demote to member">
+                                      <button onClick={() => handleUpdateMemberRole(g.id, m.userId, 'member')} className="p-1 text-on-surface-variant hover:text-warning rounded transition-colors shrink-0">
+                                        <Icon name="person" className="text-xs" />
+                                      </button>
+                                    </Tooltip>
+                                  )}
+                                  <Tooltip content="Remove member">
+                                    <button onClick={() => handleRemoveMember(g.id, m.userId)} className="p-1 text-on-surface-variant hover:text-error rounded transition-colors shrink-0">
+                                      <Icon name="close" className="text-xs" />
+                                    </button>
+                                  </Tooltip>
+                                </div>
                               )}
                             </div>
                           ))}

@@ -22,6 +22,9 @@ import assignmentsRouter from './routes/assignments.js';
 import adminRouter from './routes/admin.js';
 import groupsRouter from './routes/groups.js';
 import ssoConfigRouter from './routes/sso-config.js';
+import secretsRouter from './routes/secrets.js';
+import secretVaultsRouter from './routes/secret-vaults.js';
+import groupVaultConfigRouter from './routes/group-vault-config.js';
 import { authenticate } from './middleware/auth.js';
 import { asyncHandler } from './utils/async-handler.js';
 
@@ -85,6 +88,9 @@ app.use('/api', authenticate, assignmentsRouter); // Handles /api/assignments/*
 app.use('/api', authenticate, adminRouter); // Handles /api/users/* and /api/roles/*
 app.use('/api/groups', authenticate, groupsRouter);
 app.use('/api/admin/sso-config', authenticate, ssoConfigRouter);
+app.use('/api/secrets', authenticate, secretsRouter);
+app.use('/api/secret-vaults', authenticate, secretVaultsRouter);
+app.use('/api/group-vault-config', authenticate, groupVaultConfigRouter);
 
 // Global error handler (Express 5)
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {

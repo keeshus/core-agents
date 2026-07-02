@@ -36,6 +36,11 @@ router.post('/roles/seed', requirePermission('admin'), asyncHandler(async (_req,
         'document:write', 'knowledge:write',
         'chat:create', 'execution:approve',
         'group:read', 'group:write',
+        'secrets:read', 'secrets:write', 'secrets:read_app', 'secrets:write_app',
+        'secrets:read_group', 'secrets:write_group',
+        'secrets:rotate', 'secrets:audit',
+        'vaults:read', 'vaults:write',
+        'groups:manage',
       ],
     },
     {
@@ -52,6 +57,16 @@ router.post('/roles/seed', requirePermission('admin'), asyncHandler(async (_req,
       name: 'reader', description: 'Can approve Human-in-the-Loop requests', is_system: true,
       permissions: [
         'execution:approve',
+      ],
+    },
+    {
+      name: 'group_admin', description: 'Can manage group members, vault bindings, and group secrets', is_system: true,
+      permissions: [
+        'secrets:read_group', 'secrets:write_group',
+        'vaults:read',
+        'group:read', 'groups:manage',
+        'flow:read', 'flow:create', 'flow:edit',
+        'execution:approve', 'chat:create',
       ],
     },
   ];
@@ -156,6 +171,22 @@ router.put('/users/:id/groups', requirePermission('admin'), asyncHandler(async (
     }
   }
 
+  res.json({ status: 'updated' });
+}));
+
+// PUT /api/admin/groups/:id/members/:userId/role — update member's group role
+router.put('/groups/:id/members/:userId/role', requirePermission('admin', 'groups:manage'), asyncHandler(async (req, res) => {
+  const groupId = req.params.id as string;
+  const userId = req.params.userId as string;
+  const { role } = req.body || {};
+  if (!role || !['member', 'admin'].includes(role)) { res.status(400).json({ error: 'role must be "member" or "admin"' }); return; }
+
+  const [membership] = await db.select().from(groupMembers).where(
+    and(eq(groupMembers.group_id, groupId), eq(groupMembers.user_id, userId))
+  );
+  if (!membership) { res.status(404).json({ error: 'Membership not found' }); return; }
+
+  await db.update(groupMembers).set({ role }).where(eq(groupMembers.id, membership.id));
   res.json({ status: 'updated' });
 }));
 

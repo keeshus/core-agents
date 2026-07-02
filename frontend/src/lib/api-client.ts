@@ -136,6 +136,14 @@ export const api = {
     delete: (id: string) => request<void>(`/mcp-servers/${id}`, { method: 'DELETE' }),
     refreshTools: (id: string) => request<any>(`/mcp-servers/${id}/refresh`, { method: 'POST' }),
   },
+  secretVaults: {
+    list: () => request<any[]>('/secret-vaults'),
+    get: (id: string) => request<any>(`/secret-vaults/${id}`),
+    create: (data: any) => request<any>('/secret-vaults', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/secret-vaults/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/secret-vaults/${id}`, { method: 'DELETE' }),
+    test: (id: string) => request<any>(`/secret-vaults/${id}/test`, { method: 'POST' }),
+  },
   auth: {
     profile: () => request<any>('/auth/profile'),
     updateProfile: (data: { name?: string; email?: string }) =>

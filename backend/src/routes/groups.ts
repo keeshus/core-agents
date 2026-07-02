@@ -42,6 +42,7 @@ router.get('/:id', requirePermission('group:read'), asyncHandler(async (req, res
       userId: groupMembers.user_id,
       name: users.name,
       email: users.email,
+      role: groupMembers.role,
     })
     .from(groupMembers)
     .leftJoin(users, eq(groupMembers.user_id, users.id))
