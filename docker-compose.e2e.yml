@@ -72,6 +72,8 @@ services:
         condition: service_healthy
       db-migrate-e2e:
         condition: service_completed_successfully
+      mock-oidc-e2e:
+        condition: service_started
 
   frontend-e2e:
     build:
@@ -119,3 +121,11 @@ services:
     container_name: core-agents-e2e-mock-mcp
     ports:
       - "3003:3003"
+
+  mock-oidc-e2e:
+    build:
+      context: ./test/mock-oidc
+      dockerfile: Dockerfile
+    container_name: core-agents-e2e-mock-oidc
+    ports:
+      - "3004:3004"

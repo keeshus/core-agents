@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import * as oidc from 'openid-client';
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql, and, inArray } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { users, roles, ssoConfig, groups, groupMembers } from '../db/schema.js';
 import { authenticate, JWT_SECRET } from '../middleware/auth.js';
@@ -13,6 +13,10 @@ const router = Router();
 // ── SSO / OIDC Configuration ──────────────────────────────────────────────
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+// In-memory store for OIDC refresh tokens (per-user)
+// Keyed by userId, value is { refreshToken, expiresAt (unix ts) }
+const oidcTokenStore = new Map<string, { refreshToken: string; expiresAt: number }>();
 
 // Helper to read SSO config from DB
 async function getSSOConfig() {
@@ -28,7 +32,9 @@ function resolveRoleFromGroups(groupNames: string[], adminMapping: string[], edi
 }
 
 async function getOidcClient(issuer: string, clientId: string, clientSecret: string) {
-  const oidcConfig = await oidc.discovery(new URL(issuer), clientId, undefined, oidc.ClientSecretBasic(clientSecret));
+  const oidcConfig = await oidc.discovery(new URL(issuer), clientId, undefined, oidc.ClientSecretBasic(clientSecret), {
+    execute: [oidc.allowInsecureRequests],
+  });
   return oidcConfig;
 }
 
@@ -67,14 +73,14 @@ router.get('/sso/login', asyncHandler(async (_req, res) => {
     const state = oidc.randomState();
     const nonce = oidc.randomNonce();
     const authUrl = oidc.buildAuthorizationUrl(oidcClient, {
-      scope: 'openid email profile',
+      scope: 'openid email profile groups',
       state,
       nonce,
       redirect_uri: config.redirect_uri,
     });
     res.cookie('sso_state', state, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 });
     res.cookie('sso_nonce', nonce, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 });
-    res.redirect(String(authUrl));
+    res.redirect(String(authUrl).replace('dex-e2e', 'localhost').replace('mock-oidc-e2e', 'localhost'));
   } catch (err) {
     console.error('SSO login error:', err);
     res.status(500).json({ error: 'Failed to initiate SSO login' });
@@ -107,15 +113,50 @@ router.get('/sso/callback', asyncHandler(async (req, res) => {
     );
 
     const rawTokenSet = tokenSet as any;
-    const claims = rawTokenSet.id_token ? decodeJwtPayload(rawTokenSet.id_token) : {};
-    const email = String(claims.email || claims.preferred_username || '');
-    const name = String(claims.name || claims.given_name || email.split('@')[0] || 'SSO User');
-    const sub = String(claims.sub || '');
+    // id_token may already be decoded claims (object) in v6, or a string JWT
+    let claims: Record<string, unknown> = {};
+    if (tokenSet.id_token) {
+      if (typeof tokenSet.id_token === 'string') {
+        claims = decodeJwtPayload(tokenSet.id_token);
+      } else {
+        claims = tokenSet.id_token;
+      }
+    }
+
+    // Fetch userinfo to get additional claims (groups) that may not be in the id_token
+    let userinfo: Record<string, unknown> = {};
+    if (tokenSet.access_token) {
+      try {
+        userinfo = await oidc.fetchUserInfo(oidcClient, tokenSet.access_token, String(claims.sub || '')) as Record<string, unknown>;
+      } catch {}
+    }
+
+    // Merge: id_token takes precedence, userinfo fills gaps
+    const mergedClaims = { ...userinfo, ...claims };
+    const email = String(mergedClaims.email || mergedClaims.preferred_username || '');
+    const name = String(mergedClaims.name || mergedClaims.given_name || email.split('@')[0] || 'SSO User');
+    const sub = String(mergedClaims.sub || '');
 
     if (!email && !sub) {
       res.redirect(`${FRONTEND_URL}/login?error=no_user_info`);
       return;
     }
+
+    // Use merged claims for group extraction
+    const groupClaimName = config.group_claim || 'groups';
+    const ssoGroupNames: string[] = [];
+    if (Array.isArray(mergedClaims[groupClaimName])) {
+      ssoGroupNames.push(...mergedClaims[groupClaimName].map(String));
+    }
+    if (groupClaimName !== 'groups' && Array.isArray(mergedClaims.groups)) {
+      ssoGroupNames.push(...mergedClaims.groups.map(String));
+    }
+    if (mergedClaims.realm_access && typeof mergedClaims.realm_access === 'object') {
+      const ra = mergedClaims.realm_access as Record<string, unknown>;
+      if (Array.isArray(ra.roles)) ssoGroupNames.push(...ra.roles.map(String));
+    }
+
+    const uniqueGroupNames = [...new Set(ssoGroupNames.map((g: string) => g.trim()).filter(Boolean))];
 
     // Find or create user
     let [user] = await db.select().from(users).where(eq(users.provider_id, sub));
@@ -132,22 +173,6 @@ router.get('/sso/callback', asyncHandler(async (req, res) => {
     } else if (!user.provider_id) {
       await db.update(users).set({ provider: config.provider, provider_id: sub }).where(eq(users.id, user.id));
     }
-
-    // Sync SSO group memberships
-    const groupClaimName = config.group_claim || 'groups';
-    const ssoGroupNames: string[] = [];
-    if (Array.isArray(claims[groupClaimName])) {
-      ssoGroupNames.push(...claims[groupClaimName].map(String));
-    }
-    if (groupClaimName !== 'groups' && Array.isArray(claims.groups)) {
-      ssoGroupNames.push(...claims.groups.map(String));
-    }
-    if (claims.realm_access && typeof claims.realm_access === 'object') {
-      const ra = claims.realm_access as Record<string, unknown>;
-      if (Array.isArray(ra.roles)) ssoGroupNames.push(...ra.roles.map(String));
-    }
-
-    const uniqueGroupNames = [...new Set(ssoGroupNames.map((g: string) => g.trim()).filter(Boolean))];
 
     // Upsert groups and add user membership
     for (const groupName of uniqueGroupNames) {
@@ -197,6 +222,16 @@ router.get('/sso/callback', asyncHandler(async (req, res) => {
       { userId: user.id, email: user.email, role: roleName, permissions },
       JWT_SECRET, { expiresIn: '7d' },
     );
+
+    // Store refresh token for short-lived token refresh (OIDC group change detection)
+    const tokenSetAny = tokenSet as any;
+    if (tokenSetAny.refresh_token) {
+      const expiresIn = (tokenSetAny.expires_in as number) || 3600;
+      oidcTokenStore.set(user.id, {
+        refreshToken: tokenSetAny.refresh_token,
+        expiresAt: Math.floor(Date.now() / 1000) + expiresIn,
+      });
+    }
 
     res.cookie('token', token, { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
     await db.update(users).set({ last_login_at: new Date() }).where(eq(users.id, user.id));
@@ -364,14 +399,122 @@ router.post('/login', asyncHandler(async (req, res) => {
   });
 }));
 
-// GET /api/auth/me
+// GET /api/auth/me — also refreshes OIDC token and syncs groups
 router.get('/me', authenticate, asyncHandler(async (req, res) => {
   const userId = req.user!.userId;
+
+  // ── OIDC token refresh with group sync ─────────────────────────
+  const tokenEntry = oidcTokenStore.get(userId);
+  if (tokenEntry && tokenEntry.expiresAt < Math.floor(Date.now() / 1000) - 60) {
+    try {
+      const ssoCfg = await getSSOConfig();
+      if (ssoCfg && ssoCfg.enabled) {
+        const oidcClient = await getOidcClient(ssoCfg.issuer, ssoCfg.client_id, ssoCfg.client_secret);
+        const refreshed = await oidc.refreshTokenGrant(
+          oidcClient, tokenEntry.refreshToken,
+        ) as any;
+
+        // Decode updated id_token for group claims
+        const newClaims: Record<string, unknown> = {};
+        if (refreshed.id_token) {
+          if (typeof refreshed.id_token === 'string') {
+            const parts = refreshed.id_token.split('.');
+            if (parts.length === 3) {
+              Object.assign(newClaims, JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')));
+            }
+          } else {
+            Object.assign(newClaims, refreshed.id_token);
+          }
+        }
+
+        // Extract groups from refreshed token
+        const groupClaim = ssoCfg.group_claim || 'groups';
+        const newGroupNames: string[] = [];
+        if (Array.isArray(newClaims[groupClaim])) {
+          newGroupNames.push(...(newClaims[groupClaim] as string[]));
+        }
+
+        // Update token store
+        const newExpiresIn = (refreshed.expires_in as number) || 3600;
+        tokenEntry.expiresAt = Math.floor(Date.now() / 1000) + newExpiresIn;
+        if (refreshed.refresh_token) {
+          tokenEntry.refreshToken = refreshed.refresh_token;
+        }
+
+        // Get current groups for this user
+        const currentMemberships = await db.select({
+          groupId: groupMembers.group_id,
+          groupName: groups.name,
+        }).from(groupMembers)
+          .leftJoin(groups, eq(groupMembers.group_id, groups.id))
+          .where(eq(groupMembers.user_id, userId));
+
+        const currentGroupNames = currentMemberships.map(m => m.groupName).filter(Boolean) as string[];
+
+        // Only update if groups changed
+        const changed = currentGroupNames.length !== newGroupNames.length ||
+          !currentGroupNames.every(g => newGroupNames.includes(g));
+
+        if (changed) {
+          // Remove old SSO-provisioned group memberships
+          const allSsoGroups = await db.select({ id: groups.id }).from(groups)
+            .where(eq(groups.provider, ssoCfg.provider));
+          const ssoGroupIds = allSsoGroups.map(g => g.id);
+          if (ssoGroupIds.length > 0) {
+            await db.delete(groupMembers)
+              .where(and(eq(groupMembers.user_id, userId), inArray(groupMembers.group_id, ssoGroupIds)));
+          }
+
+          // Add new group memberships
+          for (const gName of newGroupNames) {
+            let [group] = await db.select().from(groups)
+              .where(and(eq(groups.name, gName), eq(groups.provider, ssoCfg.provider)));
+            if (!group) {
+              [group] = await db.insert(groups).values({ name: gName, provider: ssoCfg.provider }).returning();
+            }
+            await db.insert(groupMembers).values({ group_id: group.id, user_id: userId }).onConflictDoNothing();
+          }
+
+          // Update role based on new groups
+          const newRoleName = resolveRoleFromGroups(newGroupNames, ssoCfg.admin_group_mapping || [], ssoCfg.editor_group_mapping || []);
+          const [newRole] = await db.select().from(roles).where(eq(roles.name, newRoleName));
+          if (newRole) {
+            await db.update(users).set({ role_id: newRole.id }).where(eq(users.id, userId));
+          }
+        }
+      }
+    } catch (e) {
+      // Refresh failed — continue with existing session
+      console.error('OIDC refresh failed:', String(e));
+    }
+  }
+
   const userGroups = await db.select({ id: groups.id, name: groups.name })
     .from(groupMembers)
     .leftJoin(groups, eq(groupMembers.group_id, groups.id))
     .where(eq(groupMembers.user_id, userId));
-  res.json({ user: { ...req.user, groups: userGroups } });
+
+  // Re-read user's current role/permissions (may have changed via refresh)
+  const [currentUser] = await db.select().from(users).where(eq(users.id, userId));
+  let roleName = req.user?.role || 'reader';
+  let permissions: string[] = req.user?.permissions || [];
+  if (currentUser?.role_id) {
+    const [role] = await db.select().from(roles).where(eq(roles.id, currentUser.role_id));
+    if (role) {
+      roleName = role.name;
+      permissions = role.permissions || [];
+    }
+  }
+
+  res.json({
+    user: {
+      userId,
+      email: req.user?.email,
+      role: roleName,
+      permissions,
+      groups: userGroups,
+    },
+  });
 }));
 
 // POST /api/auth/logout
